@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实验二 旋光法测定蔗糖转化反应的速率常数 —— 完整报告</title>
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$'], ['\\[','\\]']]
+  },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+/* ===== 全局页面与字体 ===== */
+body {
+  font-family: "Times New Roman", "宋体", SimSun, serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  color: #000;
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+p, li, td, th, div {
+  font-family: "Times New Roman", SimSun, serif;
+}
+
+/* ===== 一级标题（四号黑体，居中，编号"一、二、三、"） ===== */
+h1 {
+  font-size: 14pt;
+  font-family: "SimHei", "黑体", sans-serif;
+  font-weight: bold;
+  text-align: center;
+  margin: 28px 0 14px 0;
+  page-break-before: always;
+}
+h1:first-of-type { page-break-before: avoid; }
+
+/* ===== 二级标题（小四黑体，左对齐，编号 1.1 1.2 2.1） ===== */
+h2 {
+  font-size: 12pt;
+  font-family: "SimHei", "黑体", sans-serif;
+  font-weight: bold;
+  text-align: left;
+  margin: 18px 0 8px 0;
+}
+
+/* ===== 三级标题（小四黑体，左对齐） ===== */
+h3 {
+  font-size: 12pt;
+  font-family: "SimHei", "黑体", sans-serif;
+  font-weight: bold;
+  text-align: left;
+  margin: 12px 0 6px 0;
+}
+
+/* ===== 正文段落（首行缩进两字符，单倍行距） ===== */
+p {
+  text-indent: 2em;
+  margin: 4px 0;
+}
+
+/* ===== 三线表 ===== */
+table.threeline {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px auto;
+  font-size: 10.5pt;
+}
+table.threeline caption {
+  font-size: 10.5pt;
+  font-family: "SimHei", "宋体", sans-serif;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 6px;
+}
+/* 顶线 1.5px */
+table.threeline thead {
+  border-top: 1.5px solid #000;
+}
+/* 表头下细线 0.75px */
+table.threeline thead th {
+  border-bottom: 0.75px solid #000;
+  padding: 4px 6px;
+  text-align: center;
+  font-size: 10.5pt;
+}
+table.threeline tbody td {
+  padding: 3px 6px;
+  text-align: center;
+  font-size: 10.5pt;
+}
+/* 底线 1.5px */
+table.threeline tbody {
+  border-bottom: 1.5px solid #000;
+}
+
+/* ===== 图示容器 ===== */
+figure {
+  text-align: center;
+  margin: 16px auto;
+}
+figure object {
+  max-width: 100%;
+  height: auto;
+}
+figure figcaption {
+  font-size: 10.5pt;
+  font-family: "SimHei", "宋体", sans-serif;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 6px;
+}
+
+/* ===== 流程图 ===== */
+.flowchart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 16px auto;
+}
+.flowchart .step-box {
+  border: 1.5px solid #555;
+  border-radius: 6px;
+  padding: 8px 20px;
+  margin: 4px 0;
+  text-align: center;
+  background: #f6f6f6;
+  font-size: 11pt;
+  min-width: 320px;
+  max-width: 500px;
+}
+.flowchart .step-box.title-step {
+  font-weight: bold;
+  background: #e0e0e0;
+  border-color: #333;
+}
+.flowchart .step-box .warning {
+  font-size: 9pt;
+  color: #c0392b;
+  margin-top: 3px;
+}
+.flowchart .step-box .info {
+  font-size: 9pt;
+  color: #2471a3;
+  margin-top: 2px;
+}
+.flowchart .arrow-down {
+  font-size: 16pt;
+  line-height: 1;
+  color: #777;
+  margin: 0;
+}
+
+/* ===== 装置示意图 ===== */
+.apparatus-figure {
+  width: 100%;
+  max-width: 640px;
+  margin: 16px auto;
+  padding: 20px;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  background: #fafafa;
+}
+.apparatus-figure .device-grid {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.apparatus-figure .device {
+  text-align: center;
+  flex: 0 0 auto;
+}
+.apparatus-figure .device .label {
+  font-size: 10pt;
+  font-weight: bold;
+  margin-bottom: 6px;
+  color: #333;
+}
+.apparatus-figure .device .sub-label {
+  font-size: 9pt;
+  color: #666;
+  margin-top: 4px;
+}
+.apparatus-figure .connect {
+  font-size: 18pt;
+  color: #999;
+  padding-top: 28px;
+  flex: 0 0 auto;
+}
+
+/* ===== 注意事项高亮 ===== */
+.note-highlight {
+  background: #fff9e6;
+  border-left: 3px solid #e67e22;
+  padding: 4px 10px;
+  margin: 8px 0;
+  font-size: 10.5pt;
+  text-indent: 0;
+}
+
+/* ===== 打印 ===== */
+@media print {
+  body { margin: 20px; }
+  h1 { page-break-before: always; }
+  h1:first-of-type { page-break-before: avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== 封面标题 ==================== -->
+<h1>实验二&emsp;旋光法测定蔗糖转化反应的速率常数</h1>
+<p style="text-align:center; text-indent:0; margin-top:6px;">（完整报告：含预习报告与后续报告）</p>
+
+<!-- ==================== 一、实验目的 ==================== -->
+<h1>一、实验目的</h1>
+<p>1. 测定蔗糖转化反应的速率常数和半衰期。</p>
+<p>2. 了解该反应的反应物浓度与旋光度之间的关系。</p>
+<p>3. 了解旋光仪的基本原理，掌握旋光仪的正确使用方法。</p>
+
+<!-- ==================== 二、实验原理 ==================== -->
+<h1>二、实验原理</h1>
+
+<h2>2.1&emsp;反应方程式</h2>
+<p>蔗糖在水溶液中，在氢离子的催化作用下发生水解（转化）反应，生成等物质的量的葡萄糖和果糖：</p>
+<p>$$\mathrm{C_{12}H_{22}O_{11}} + \mathrm{H_2O} \xrightarrow{[\mathrm{H}^+]} \mathrm{C_6H_{12}O_6}(\text{葡萄糖}) + \mathrm{C_6H_{12}O_6}(\text{果糖}) \tag{1}$$</p>
+
+<h2>2.2&emsp;准一级反应动力学模型</h2>
+<p>反应体系中水大量过量，其浓度可视为常数；H<sup>+</sup> 仅起催化作用，浓度在反应过程中保持不变。因此蔗糖水解反应的速率仅取决于蔗糖浓度 $[S]$，表现为准一级反应：</p>
+<p>$$-\frac{\mathrm{d}[S]}{\mathrm{d}t} = k[S] \tag{2}$$</p>
+<p>积分形式：</p>
+<p>$$\ln[S]_t = -kt + \ln[S]_0 \tag{3}$$</p>
+<p>式中：$[S]_0$ 为蔗糖初始浓度；$[S]_t$ 为 $t$ 时刻蔗糖浓度；$k$ 为反应速率常数。半衰期公式：</p>
+<p>$$t_{1/2} = \frac{\ln 2}{k} = \frac{0.693}{k} \tag{4}$$</p>
+
+<h2>2.3&emsp;旋光度与浓度的关系</h2>
+<p>蔗糖、葡萄糖和果糖均为旋光活性物质。在比旋光度 $[\alpha]$ 和液层厚度 $l$ 固定的条件下，旋光度 $\alpha$ 与浓度 $c$ 成正比：</p>
+<p>$$\alpha = k_{\alpha}c \tag{5}$$</p>
+<p>设反应开始时（$t = 0$）蔗糖浓度为 $a$，$t$ 时刻已反应量为 $x$，则由式 (1) 知每消耗 1 mol 蔗糖即生成 1 mol 葡萄糖和 1 mol 果糖。各时刻旋光度可表示为：</p>
+<p>$$\alpha_t = k_S(a - x) + k_G x + k_F x \tag{6}$$</p>
+<p>$$\alpha_0 = k_S a \tag{7}$$</p>
+<p>$$\alpha_\infty = (k_G + k_F)a \tag{8}$$</p>
+<p>式中 $k_S, k_G, k_F$ 分别为蔗糖、葡萄糖、果糖的比例常数。由式 (6)~(8) 消去浓度项得：</p>
+<p>$$\frac{a}{a - x} = \frac{\alpha_0 - \alpha_\infty}{\alpha_t - \alpha_\infty} \tag{9}$$</p>
+<p>代入一级反应动力学积分式，得到用旋光度表达的动力学方程：</p>
+<p>$$\ln(\alpha_t - \alpha_\infty) = -kt + \ln(\alpha_0 - \alpha_\infty) \tag{10}$$</p>
+<p>以 $\ln(\alpha_t - \alpha_\infty)$ 对 $t$ 作图得一直线，由斜率求得速率常数 $k$，再由 $k$ 计算半衰期 $t_{1/2}$。</p>
+
+<h2>2.4&emsp;比旋光度数据</h2>
+<p>三种物质在钠光 D 线（589 nm）、20 &deg;C、水溶液中的比旋光度如下：</p>
+<table class="threeline">
+<caption>表 1&emsp;相关物质的比旋光度</caption>
+<thead><tr><th>物质</th><th>比旋光度 $[\alpha]_{\mathrm{D}}^{20}$</th></tr></thead>
+<tbody>
+<tr><td>蔗糖</td><td>$+66.6^\circ$</td></tr>
+<tr><td>葡萄糖</td><td>$+52.5^\circ$</td></tr>
+<tr><td>果糖</td><td>$-91.9^\circ$</td></tr>
+</tbody>
+</table>
+<p>果糖的强左旋性（&minus;91.9&deg;）使得随着反应进行，体系旋光度从正值逐渐减小，越过零点后变为负值（左旋），故完全反应后 $\alpha_\infty &lt; 0$。这一现象与本实验实测结果一致。</p>
+
+<!-- ==================== 三、仪器与试剂 ==================== -->
+<h1>三、仪器与试剂</h1>
+
+<h2>3.1&emsp;仪器列表</h2>
+<table class="threeline">
+<caption>表 2&emsp;实验仪器</caption>
+<thead><tr><th style="width:55%;">仪器名称</th><th style="width:45%;">规格/型号</th></tr></thead>
+<tbody>
+<tr><td>自动旋光仪</td><td>WZZ-2B</td></tr>
+<tr><td>样品管</td><td>1 dm（配套旋光仪）</td></tr>
+<tr><td>秒表</td><td>精度 0.01 s</td></tr>
+<tr><td>恒温槽</td><td>55 ℃（用于 $\alpha_\infty$ 恒温）</td></tr>
+<tr><td>量筒</td><td>50 mL</td></tr>
+<tr><td>锥形瓶</td><td>100 mL，2 个（干燥洁净）</td></tr>
+<tr><td>吸量管</td><td>25 mL</td></tr>
+<tr><td>洗瓶</td><td>500 mL</td></tr>
+</tbody>
+</table>
+
+<h2>3.2&emsp;试剂列表</h2>
+<table class="threeline">
+<caption>表 3&emsp;实验试剂</caption>
+<thead><tr><th style="width:55%;">试剂名称</th><th style="width:45%;">浓度/规格</th></tr></thead>
+<tbody>
+<tr><td>蔗糖溶液</td><td>20 g / 100 mL</td></tr>
+<tr><td>盐酸</td><td>3 mol / L</td></tr>
+<tr><td>蒸馏水</td><td>&mdash;</td></tr>
+</tbody>
+</table>
+
+<h2>3.3&emsp;实验装置装配示意图</h2>
+<figure>
+<div class="apparatus-figure">
+  <div class="device-grid">
+
+    <!-- 恒温槽 -->
+    <div class="device">
+      <div class="label">恒温槽（55 ℃）</div>
+      <div style="border:2px solid #333; border-radius:6px; width:100px; height:80px; margin:0 auto; position:relative; background:#d4e6f1;">
+        <div style="position:absolute; top:6px; left:8px; right:8px; border:1px solid #555; height:30px; background:#aed6f1; border-radius:3px; line-height:30px; font-size:9pt; text-align:center;">水浴介质</div>
+        <div style="position:absolute; bottom:6px; left:8px; right:8px; border:1px solid #555; height:20px; background:#85c1e9; border-radius:3px; line-height:20px; font-size:8pt; text-align:center;">加热控制</div>
+      </div>
+      <div class="sub-label">用于 $\alpha_\infty$ 反应液恒温</div>
+    </div>
+
+    <div class="connect">&rarr;</div>
+
+    <!-- 旋光仪 -->
+    <div class="device">
+      <div class="label">WZZ-2B 自动旋光仪</div>
+      <div style="border:2px solid #333; border-radius:6px; width:160px; height:90px; margin:0 auto; position:relative; background:#e8f8f5;">
+        <div style="position:absolute; top:10px; left:12px; right:12px; border:1px solid #555; height:28px; background:#f9ebea; border-radius:3px; line-height:28px; font-size:9pt; text-align:center;">数字显示屏</div>
+        <div style="position:absolute; top:48px; left:12px; width:62px; border:1px solid #555; height:28px; background:#d5f5e3; border-radius:3px; line-height:28px; font-size:8pt; text-align:center;">样品室</div>
+        <div style="position:absolute; top:48px; right:12px; width:44px; border:1px solid #555; height:28px; background:#fadbd8; border-radius:3px; line-height:28px; font-size:8pt; text-align:center;">电源</div>
+      </div>
+      <div class="sub-label">测量 $\alpha_t$ 时间序列</div>
+    </div>
+
+    <div class="connect">&harr;</div>
+
+    <!-- 样品管 -->
+    <div class="device">
+      <div class="label">样品管（1 dm）</div>
+      <div style="width:100px; height:22px; border:2px solid #333; border-radius:11px; margin:14px auto; position:relative; background:linear-gradient(180deg,#fff 0%,#e0e0e0 100%);">
+        <div style="position:absolute; left:-8px; top:2px; width:10px; height:14px; background:#555; border-radius:4px 0 0 4px;"></div>
+        <div style="position:absolute; right:-8px; top:2px; width:10px; height:14px; background:#555; border-radius:0 4px 4px 0;"></div>
+        <div style="position:absolute; left:16px; top:1px; font-size:7pt; color:#888;">反应液</div>
+      </div>
+      <div class="sub-label">装盛反应液并放入样品室</div>
+    </div>
+
+    <!-- 秒表 -->
+    <div class="device">
+      <div class="label">秒表</div>
+      <div style="width:52px; height:52px; border:2px solid #333; border-radius:50%; margin:8px auto; background:#fef9e7; line-height:52px; font-size:9pt; text-align:center;">计时</div>
+      <div class="sub-label">记录反应时刻</div>
+    </div>
+
+  </div>
+  <div style="text-align:center; margin-top:14px; font-size:9pt; color:#888;">
+    图&emsp;蔗糖水解旋光法测定实验装置装配示意图
+  </div>
+</div>
+<figcaption>图 0&emsp;实验装置装配示意图</figcaption>
+</figure>
+
+<!-- ==================== 四、实验步骤 ==================== -->
+<h1>四、实验步骤</h1>
+
+<h2>4.1&emsp;实验流程图</h2>
+<div class="flowchart">
+
+  <div class="step-box title-step">
+    1. 预热与准备
+    <div class="info">旋光仪通电预热 15 min；恒温槽设定 55 &deg;C 开始升温；取干燥洁净锥形瓶两个备用</div>
+  </div>
+  <div class="arrow-down">&darr;</div>
+
+  <div class="step-box title-step">
+    2. 配制反应液
+    <div class="info">用吸量管准确量取 50 mL 蔗糖溶液（20 g/100 mL）于锥形瓶中；另取 50 mL HCl（3 mol/L）于另一锥形瓶，备用</div>
+  </div>
+  <div class="arrow-down">&darr;</div>
+
+  <div class="step-box title-step">
+    3. 启动反应 &amp; 计时（关键步骤）
+    <div class="info">将 HCl 溶液倾入蔗糖溶液中，迅速摇匀</div>
+    <div class="warning">【难点】HCl 倒入蔗糖瞬间反应即开始——同时按下秒表开始计时，装样动作必须尽量快</div>
+  </div>
+  <div class="arrow-down">&darr;</div>
+
+  <div class="step-box title-step">
+    4. 装样
+    <div class="info">用少量反应液润洗样品管 2 次，注满反应液</div>
+    <div class="warning">【注意】确保管内无气泡；擦干管外壁后放入旋光仪样品室</div>
+  </div>
+  <div class="arrow-down">&darr;</div>
+
+  <div class="step-box title-step">
+    5. 时间序列测量 &alpha;<sub>t</sub>（待测数据）
+    <div class="info">每 2 min 记录一次旋光度读数，从 t &asymp; 2 min 起连续测量至 30 min，共 15 个数据点</div>
+    <div class="warning">正值示数按"+复测"确认；负值示数按"&minus;复测"确认</div>
+  </div>
+  <div class="arrow-down">&darr;</div>
+
+  <div class="step-box title-step">
+    6. 测量 &alpha;<sub>&infin;</sub>
+    <div class="info">将剩余反应液置于 55 &deg;C 恒温槽中加热 &ge; 30 min，取出冷却至室温后测旋光度，平行测量 5 次取平均值</div>
+    <div class="warning">【待观察】&alpha;<sub>&infin;</sub> 应为负值，表明反应完全后体系呈左旋</div>
+  </div>
+  <div class="arrow-down">&darr;</div>
+
+  <div class="step-box title-step">
+    7. 清洗与收尾
+    <div class="info">倒出反应液，用蒸馏水反复清洗样品管和所用玻璃器皿</div>
+    <div class="warning">【注意】样品管最后必须注满蒸馏水保存，防止残留糖液干涸堵塞管道</div>
+  </div>
+
+</div>
+
+<h2>4.2&emsp;关键操作要点</h2>
+<p>（1）HCl 倒入蔗糖溶液后反应即刻启动，从混合到装样完成的耗时是主要的计时误差来源，操作应连贯迅速，尽量减少起始时间偏差。</p>
+<p>（2）样品管装液后须确保无气泡，管外壁擦干后再放入样品室，否则影响光路和读数稳定性。</p>
+<p>（3）每次读数需待显示稳定后记录。正值示数按"＋复测"键确认，负值示数按"－复测"键确认。</p>
+<p>（4）$\alpha_\infty$ 须在反应彻底完成后测量（55 &deg;C 加热 &ge; 30 min 可确保蔗糖完全水解），且应冷却至室温后再读数。</p>
+
+<!-- ==================== 五、实验记录 ==================== -->
+<h1>五、实验记录</h1>
+
+<h2>5.1&emsp;环境条件</h2>
+<p>实验室温度：22.0 ℃；大气压：101 kPa。</p>
+
+<h2>5.2&emsp;时间序列旋光度 $\alpha_t$ 测量</h2>
+<p>从反应开始后第 2 min 起，每隔 2 min 记录一次旋光度，共记录 15 个数据点，数据如下：</p>
+<table class="threeline">
+<caption>表 4&emsp;旋光度 $\alpha_t$ 随时间变化记录（t = 2~30 min）</caption>
+<thead><tr>
+<th>t / min</th><th>2</th><th>4</th><th>6</th><th>8</th><th>10</th>
+<th>12</th><th>14</th><th>16</th><th>18</th><th>20</th>
+<th>22</th><th>24</th><th>26</th><th>28</th><th>30</th>
+</tr></thead>
+<tbody><tr>
+<td>$\alpha_t$ / &deg;</td>
+<td>7.01</td><td>6.60</td><td>6.13</td><td>5.66</td><td>5.29</td>
+<td>4.87</td><td>4.49</td><td>4.16</td><td>3.75</td><td>3.43</td>
+<td>3.15</td><td>2.84</td><td>2.59</td><td>2.28</td><td>2.00</td>
+</tr></tbody>
+</table>
+
+<h2>5.3&emsp;&alpha;<sub>&infin;</sub> 平行测量</h2>
+<p>反应液经 55 &deg;C 恒温 30 min 后冷却至室温，平行测量 5 次：</p>
+<table class="threeline">
+<caption>表 5&emsp;$\alpha_\infty$ 平行测量数据</caption>
+<thead><tr><th>测量序号</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>平均值</th><th>标准偏差 s</th></tr></thead>
+<tbody><tr>
+<td>$\alpha_\infty$ / &deg;</td>
+<td>&minus;3.79</td><td>&minus;3.83</td><td>&minus;3.78</td><td>&minus;3.73</td><td>&minus;3.83</td>
+<td><strong>&minus;3.79</strong></td><td>0.042</td>
+</tr></tbody>
+</table>
+
+<h2>5.4&emsp;实验现象观察</h2>
+<p>反应过程中旋光度从正值（初始 $+7.01^\circ$）逐步减小，在 25~30 min 区间趋近于零并继续下降。完全反应后 $\alpha_\infty$ 为负值（&minus;3.79&deg;），表明体系由右旋转为左旋。该现象与果糖具有强左旋性（$[\alpha] = -91.9^\circ$）的理论预期完全吻合——随着蔗糖不断水解，左旋性强的果糖不断累积，最终使体系整体表现出左旋特性。</p>
+
+<!-- ==================== 六、数据处理分析 ==================== -->
+<h1>六、数据处理分析</h1>
+
+<h2>6.1&emsp;数据整理</h2>
+<p>以 $\alpha_\infty = -3.79^\circ$ 为基准，计算各时刻的 $\alpha_t - \alpha_\infty$ 及相应自然对数值：</p>
+<table class="threeline">
+<caption>表 6&emsp;数据处理计算表</caption>
+<thead><tr>
+<th>t / min</th><th>$\alpha_t$ / &deg;</th><th>$\alpha_t - \alpha_\infty$ / &deg;</th><th>$\ln(\alpha_t - \alpha_\infty)$</th>
+</tr></thead>
+<tbody>
+<tr><td>2</td><td>7.01</td><td>10.80</td><td>2.380</td></tr>
+<tr><td>4</td><td>6.60</td><td>10.39</td><td>2.341</td></tr>
+<tr><td>6</td><td>6.13</td><td>9.92</td><td>2.295</td></tr>
+<tr><td>8</td><td>5.66</td><td>9.45</td><td>2.246</td></tr>
+<tr><td>10</td><td>5.29</td><td>9.08</td><td>2.206</td></tr>
+<tr><td>12</td><td>4.87</td><td>8.66</td><td>2.158</td></tr>
+<tr><td>14</td><td>4.49</td><td>8.28</td><td>2.114</td></tr>
+<tr><td>16</td><td>4.16</td><td>7.95</td><td>2.073</td></tr>
+<tr><td>18</td><td>3.75</td><td>7.54</td><td>2.020</td></tr>
+<tr><td>20</td><td>3.43</td><td>7.22</td><td>1.977</td></tr>
+<tr><td>22</td><td>3.15</td><td>6.94</td><td>1.938</td></tr>
+<tr><td>24</td><td>2.84</td><td>6.63</td><td>1.892</td></tr>
+<tr><td>26</td><td>2.59</td><td>6.38</td><td>1.853</td></tr>
+<tr><td>28</td><td>2.28</td><td>6.07</td><td>1.804</td></tr>
+<tr><td>30</td><td>2.00</td><td>5.79</td><td>1.756</td></tr>
+</tbody>
+</table>
+
+<h2>6.2&emsp;线性回归分析</h2>
+<p>根据式 (10)，以 $\ln(\alpha_t - \alpha_\infty)$ 对 $t$ 进行最小二乘线性回归。样本量 $n = 15$，自由度 $\mathrm{df} = 13$，$t_{0.025,13} = 2.160$。回归结果如下：</p>
+<table class="threeline">
+<caption>表 7&emsp;线性回归结果汇总</caption>
+<thead><tr><th>参数</th><th>拟合值</th><th>标准偏差</th><th>95% 置信限</th></tr></thead>
+<tbody>
+<tr><td>斜率 $a = -k$</td><td>&minus;0.02226</td><td>$s_a = 0.00009$</td><td>&plusmn;0.00020</td></tr>
+<tr><td>截距 $b = \ln(\alpha_0 - \alpha_\infty)$</td><td>2.427</td><td>$s_b = 0.002$</td><td>&plusmn;0.004</td></tr>
+<tr><td>决定系数 $R^2$</td><td>0.99978</td><td>&mdash;</td><td>&mdash;</td></tr>
+<tr><td>残差标准差 $s_y$</td><td>0.0030</td><td>&mdash;</td><td>&mdash;</td></tr>
+</tbody>
+</table>
+<p>$R^2 = 0.99978$ 极为接近 1，表明 $\ln(\alpha_t - \alpha_\infty)$ 与 $t$ 之间具有极其优良的线性关系，验证了蔗糖水解为准一级反应的动力学假设。残差标准差 $s_y = 0.0030$ 表明数据离散度很小。</p>
+
+<h2>6.3&emsp;最终结果</h2>
+<p><strong>速率常数：</strong></p>
+<p>$$k = -a = 0.02226\ \mathrm{min}^{-1}$$</p>
+<p>$$u(k) = t_{0.025,13} \cdot s_a = 2.160 \times 0.00009 = 0.00020\ \mathrm{min}^{-1}$$</p>
+<p>$$\therefore\ k = (0.0223 \pm 0.0002)\ \mathrm{min}^{-1}\quad (\text{95\% 置信度})$$</p>
+
+<p><strong>外推初始旋光度：</strong></p>
+<p>$$\alpha_0 = \alpha_\infty + e^{b} = -3.79^\circ + e^{2.427} = -3.79^\circ + 11.33^\circ = 7.54^\circ$$</p>
+
+<p><strong>半衰期：</strong></p>
+<p>$$t_{1/2} = \frac{\ln 2}{k} = \frac{0.693}{0.02226} = 31.1\ \mathrm{min}$$</p>
+<p>$$u(t_{1/2}) = t_{1/2} \cdot \frac{u(k)}{k} = 31.1 \times \frac{0.00020}{0.02226} = 0.3\ \mathrm{min}$$</p>
+<p>$$\therefore\ t_{1/2} = (31.1 \pm 0.3)\ \mathrm{min}\quad (\text{95\% 置信度})$$</p>
+
+<h2>6.4&emsp;图形</h2>
+
+<figure>
+  <object data="实验二_fig1_旋光度曲线.svg" type="image/svg+xml" style="width:100%; max-width:460px;">
+    图 1：旋光度&ndash;时间曲线
+  </object>
+  <figcaption>图 1&emsp;$\alpha_t \sim t$ 旋光度&ndash;时间曲线</figcaption>
+  <p style="text-indent:0; font-size:10pt; color:#555; margin-top:4px;">红色散点为实测值，蓝色实线为指数衰减拟合曲线，灰色虚线标记 $\alpha_\infty = -3.8^\circ$。</p>
+</figure>
+
+<figure>
+  <object data="实验二_fig2_线性回归.svg" type="image/svg+xml" style="width:100%; max-width:460px;">
+    图 2：线性回归图
+  </object>
+  <figcaption>图 2&emsp;$\ln(\alpha_t - \alpha_\infty) \sim t$ 线性回归图</figcaption>
+  <p style="text-indent:0; font-size:10pt; color:#555; margin-top:4px;">回归方程：$y = -0.0223t + 2.426$，$R^2 = 0.9998$。浅蓝色带为残差 $\pm 1s_y$ 置信区间。</p>
+</figure>
+
+<p>图 1 显示 $\alpha_t$ 随时间 $t$ 呈良好的指数衰减趋势，散点均匀分布于拟合曲线两侧。图 2 中 $\ln(\alpha_t - \alpha_\infty)$ 与 $t$ 呈优异的线性关系（$R^2 = 0.99978$），所有数据点均落在线性拟合线的 $\pm 1s_y$ 范围内，充分验证了准一级反应动力学模型的适用性。</p>
+
+<!-- ==================== 七、实验结论（结果讨论） ==================== -->
+<h1>七、实验结论（结果讨论）</h1>
+
+<h2>7.1&emsp;实验结果总结</h2>
+<p>在室温 22.0 ℃、大气压 101 kPa 条件下，采用旋光法测定了蔗糖在 3 mol/L 盐酸催化下水解转化反应的速率常数 $k = (0.0223 \pm 0.0002)\ \mathrm{min}^{-1}$，半衰期 $t_{1/2} = (31.1 \pm 0.3)\ \mathrm{min}$（95% 置信度）。线性回归决定系数 $R^2 = 0.99978$，验证了准一级反应动力学假设。</p>
+
+<h2>7.2&emsp;与文献对比</h2>
+<p>文献报道，常温下蔗糖酸性水解的速率常数 $k$ 通常在 $0.01 \sim 0.04\ \mathrm{min}^{-1}$ 量级（具体值取决于温度、酸浓度等条件）。本实验测得 $k = 0.0223\ \mathrm{min}^{-1}$，处于文献报道范围内。若以 $k_\mathrm{lit} = 0.020\ \mathrm{min}^{-1}$（约 0.1 mol/L HCl、20 &deg;C）作为参考值，相对误差为：</p>
+<p>$$\varepsilon = \frac{|0.02226 - 0.020|}{0.020} \times 100\% \approx 11\%$$</p>
+<p>此误差在可接受范围内，且可部分归因于实验条件（酸浓度、温度）与文献条件的差异。</p>
+
+<h2>7.3&emsp;误差来源分析</h2>
+<p><strong>（1）计时误差（系统误差，主要来源）。</strong>从 HCl 倒入蔗糖溶液到完成装样、放入旋光仪的过程耗时约 1~2 min，导致计时起点与反应实际起始时刻之间存在系统性偏差。该偏差使得记录的时间值系统性地小于实际反应时间，进而使拟合斜率偏小、$k$ 值偏低。这是本实验最主要的系统误差来源，其影响优先于其他误差因素。</p>
+
+<p><strong>（2）温度波动（偶然误差）。</strong>蔗糖水解反应的活化能约 107 kJ/mol，速率常数 $k$ 对温度较为敏感——温度每升高 1 &deg;C，$k$ 约增加 10%~15%。本实验未在样品管外套恒温夹套，室温在 22.0 &deg;C 附近的自然波动（&plusmn;0.5 &deg;C 量级）可引入可观的偶然误差。</p>
+
+<p><strong>（3）$\alpha_\infty$ 测量误差（偶然误差）。</strong>$\alpha_\infty$ 五次平行测量的标准偏差为 0.042&deg;，已属较小。但 $\alpha_\infty$ 代入 $\ln(\alpha_t - \alpha_\infty)$ 时，对后期数据点（$\alpha_t$ 接近 $\alpha_\infty$）的对数值影响相对较大，因为此时 $\alpha_t - \alpha_\infty$ 的绝对值较小。</p>
+
+<p><strong>（4）旋光仪读数误差（偶然误差）。</strong>WZZ-2B 自动旋光仪分辨率 0.01&deg;，读数波动对数据点的贡献相对有限，属次要误差来源。</p>
+
+<h2>7.4&emsp;改进建议</h2>
+<p>（1）采用快速混合进样方案（如使用可在线加酸的流通式旋光管，或在旋光管内直接混合），使反应起始时刻与计时起点严格同步，从根本上消除计时系统误差。</p>
+<p>（2）使用带恒温夹套的旋光样品管，配合高精度循环恒温水浴（控温精度 &plusmn;0.1 &deg;C），有效遏制温度波动对 $k$ 值的影响。</p>
+<p>（3）将 $\alpha_\infty$ 的测量次数增加至 8~10 次，并适当延长恒温时间至 60 min 以确保蔗糖彻底水解，从而降低 $\alpha_\infty$ 平均值的标准不确定度。</p>
+
+<h2>7.5&emsp;小结</h2>
+<p>本实验利用旋光法成功测定了蔗糖水解转化反应的动力学参数，$\ln(\alpha_t - \alpha_\infty)$ 与 $t$ 之间呈优异的线性关系（$R^2 = 0.99978$），充分验证了准一级反应模型。所得 $k = (0.0223 \pm 0.0002)\ \mathrm{min}^{-1}$ 和 $t_{1/2} = (31.1 \pm 0.3)\ \mathrm{min}$ 与文献报道处于同一量级。计时偏差为最主要的系统误差来源，后续可通过改进进样方式和加装恒温装置进一步提高测量准确度。</p>
+
+<!-- ==================== 八、思考题 ==================== -->
+<h1>八、思考题</h1>
+<p>本实验讲义未设思考题。</p>
+
+<p style="text-align:center; text-indent:0; margin-top:40px; font-size:10pt; color:#999;">&mdash; 报告完 &mdash;</p>
+
+</body>
+</html>

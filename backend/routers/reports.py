@@ -221,3 +221,32 @@ async def export_docx(request: dict):
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": "attachment; filename=report.docx"},
     )
+
+
+@router.post("/export-docx-v2")
+async def export_docx_v2(request: dict):
+    """Build DOCX from HTML report via hybrid pipeline.
+
+    pandoc preserves structure (tables, headings, styles);
+    addFormula2docx provides clean OMML formulas (no extra spaces).
+
+    Request body: { html: str }
+    Returns: DOCX binary stream.
+    """
+    from fastapi.responses import Response
+    from services.docx_v2.pipeline import convert_html_to_docx_v2
+
+    html = request.get("html", "")
+    if not html:
+        raise HTTPException(status_code=400, detail="缺少 html 参数")
+
+    try:
+        docx_bytes = convert_html_to_docx_v2(html)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return Response(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": "attachment; filename=report.docx"},
+    )

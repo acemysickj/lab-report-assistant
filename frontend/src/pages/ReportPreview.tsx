@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Space, Spin, Result, Typography, message } from 'antd';
-import { ArrowLeftOutlined, HomeOutlined, FileWordOutlined } from '@ant-design/icons';
-import { listReports, exportDocx } from '../api/client';
+import { Button, Space, Spin, Result, Typography } from 'antd';
+import { ArrowLeftOutlined, HomeOutlined } from '@ant-design/icons';
+import { listReports } from '../api/client';
 import HtmlPreview from '../components/HtmlPreview';
 
 const { Text } = Typography;
@@ -49,24 +49,6 @@ export default function ReportPreview() {
     window.location.href = `${base}/download/${format}`;
   };
 
-  const [docxLoading, setDocxLoading] = useState(false);
-  const handleDocxDownload = async () => {
-    if (!html) {
-      message.warning('报告内容为空');
-      return;
-    }
-    setDocxLoading(true);
-    try {
-      await exportDocx(html);
-      message.success('DOCX 下载已开始');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'DOCX 导出失败';
-      message.error(msg);
-    } finally {
-      setDocxLoading(false);
-    }
-  };
-
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 120 }}><Spin size="large" /></div>;
 
   if (error) {
@@ -83,17 +65,7 @@ export default function ReportPreview() {
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ color: '#6b5e4a', paddingLeft: 0 }}>返回</Button>
           <Button type="text" icon={<HomeOutlined />} onClick={() => navigate('/')} style={{ color: '#6b5e4a' }}>首页</Button>
         </Space>
-        <Space>
-          <Button
-            type="primary"
-            icon={<FileWordOutlined />}
-            onClick={handleDocxDownload}
-            loading={docxLoading}
-          >
-            下载 DOCX
-          </Button>
-          <Text type="secondary" style={{ fontSize: 13 }}>报告 #{reportId}</Text>
-        </Space>
+        <Text type="secondary" style={{ fontSize: 13 }}>报告 #{reportId}</Text>
       </div>
       <HtmlPreview html={html} downloadUrl={downloadUrl} onDownload={handleDownload} />
     </div>

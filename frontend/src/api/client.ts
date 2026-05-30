@@ -40,28 +40,6 @@ export const deleteReport = (experimentDir: string, filename: string) =>
 export const healthCheck = () =>
   request<{ status: string; claude_api: boolean }>('/health');
 
-// --- DOCX Export ---
-export const exportDocx = async (html: string): Promise<void> => {
-  const res = await fetch('/api/reports/export-docx', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ html }),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || `HTTP ${res.status}`);
-  }
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'report.docx';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
-
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${url}`, {
     headers: { 'Content-Type': 'application/json' },

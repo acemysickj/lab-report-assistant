@@ -6,8 +6,8 @@ v2: python-docx template filling with latex2mathml + mathml2omml.
 import re
 import subprocess
 import tempfile
+import os
 from pathlib import Path
-from config import PANDOC_PATH, REFERENCE_DOCX
 
 
 def _preprocess_html_for_pandoc(html: str) -> str:
@@ -89,7 +89,9 @@ def convert_html_to_docx(html: str) -> bytes:
         docx_path = tmp_docx.name
 
     try:
-        cmd = [PANDOC_PATH, html_path, "-f", "html", "-t", "docx", "-o", docx_path]
+        from config import PANDOC_PATH, REFERENCE_DOCX
+        pandoc_path = os.environ.get("PANDOC_PATH", PANDOC_PATH)
+        cmd = [pandoc_path, html_path, "-f", "html+tex_math_dollars", "-t", "docx", "-o", docx_path]
 
         # Use reference docx for styling if configured
         if REFERENCE_DOCX and Path(REFERENCE_DOCX).exists():
@@ -131,9 +133,11 @@ def convert_html_to_docx(html: str) -> bytes:
 
 def is_pandoc_available() -> bool:
     """Check whether pandoc is installed and reachable."""
+    from config import PANDOC_PATH
+    pandoc_path = os.environ.get("PANDOC_PATH", PANDOC_PATH)
     try:
         result = subprocess.run(
-            [PANDOC_PATH, "--version"], capture_output=True, text=True, timeout=10
+            [pandoc_path, "--version"], capture_output=True, text=True, timeout=10
         )
         return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):

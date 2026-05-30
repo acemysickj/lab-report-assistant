@@ -1,5 +1,5 @@
-import { Card, Image, Empty, Row, Col } from 'antd';
-import { PictureOutlined } from '@ant-design/icons';
+import { Card, Image, Row, Col } from 'antd';
+import LabEmpty from './LabEmpty';
 
 interface Props {
   figures: string[];
@@ -8,12 +8,7 @@ interface Props {
 
 export default function FigurePreview({ figures, outputDir }: Props) {
   if (figures.length === 0) {
-    return (
-      <Empty
-        image={<PictureOutlined style={{ fontSize: 48, color: '#bfb5a4' }} />}
-        description="暂无图形"
-      />
-    );
+    return <LabEmpty type="figure" />;
   }
 
   return (

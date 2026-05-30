@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Space, Result, Typography, Skeleton, message } from 'antd';
-import { ArrowLeftOutlined, HomeOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Button, Space, Result, Typography, Skeleton, message, Card, Collapse } from 'antd';
+import { ArrowLeftOutlined, HomeOutlined, ReloadOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import { listReports } from '../api/client';
 import HtmlPreview from '../components/HtmlPreview';
+import ReportTOC from '../components/ReportTOC';
+import type { HtmlPreviewHandle } from '../components/HtmlPreview';
 
 const { Text } = Typography;
 
@@ -14,6 +16,9 @@ export default function ReportPreview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [downloadUrl, setDownloadUrl] = useState('');
+  const [tocCollapsed, setTocCollapsed] = useState(false);
+
+  const previewRef = useRef<HtmlPreviewHandle>(null);
 
   useEffect(() => {
     if (!reportId) {
@@ -22,7 +27,7 @@ export default function ReportPreview() {
       return;
     }
 
-    // Try sessionStorage cache first (freshly generated report)
+    // Try sessionStorage cache first
     const lastId = sessionStorage.getItem('lastReportId');
     const lastHtml = sessionStorage.getItem('lastReportHtml');
     const lastPath = sessionStorage.getItem('lastReportPath');
@@ -34,7 +39,6 @@ export default function ReportPreview() {
       return;
     }
 
-    // Fallback: look up report from the list
     loadReportFromServer(reportId);
   }, [reportId]);
 
@@ -73,7 +77,6 @@ export default function ReportPreview() {
 
   const handleDownload = (format: 'html' | 'pdf' | 'md') => {
     if (!downloadUrl) {
-      // Fallback for sessionStorage reports
       message.info('下载链接不可用，请从历史报告页面下载');
       return;
     }
@@ -81,12 +84,20 @@ export default function ReportPreview() {
     window.location.href = `${base}/download/${format}`;
   };
 
+  // Navigate to a heading in the report
+  const handleTocNavigate = useCallback((elementId: string) => {
+    previewRef.current?.scrollToId(elementId);
+  }, []);
+
   // ---- Loading ----
   if (loading) {
     return (
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <Skeleton active paragraph={{ rows: 1 }} style={{ marginBottom: 24 }} />
-        <Skeleton active paragraph={{ rows: 12 }} />
+        <div style={{ display: 'flex', gap: 20 }}>
+          <Skeleton active paragraph={{ rows: 10 }} style={{ width: 200, flexShrink: 0 }} />
+          <Skeleton active paragraph={{ rows: 12 }} style={{ flex: 1 }} />
+        </div>
       </div>
     );
   }
@@ -113,29 +124,85 @@ export default function ReportPreview() {
     );
   }
 
-  // ---- Content ----
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      {/* Top bar */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 24,
+      }}>
         <Space>
           <Button
             type="text"
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate(-1)}
-            style={{ color: '#6b5e4a', paddingLeft: 0 }}
+            style={{ color: '#6b5e4a', paddingLeft: 0, fontWeight: 500 }}
           >
             返回
           </Button>
-          <Button type="text" icon={<HomeOutlined />} onClick={() => navigate('/')} style={{ color: '#6b5e4a' }}>
+          <Button
+            type="text"
+            icon={<HomeOutlined />}
+            onClick={() => navigate('/')}
+            style={{ color: '#6b5e4a' }}
+          >
             首页
           </Button>
         </Space>
-        <Text type="secondary" style={{ fontSize: 13 }}>
-          报告 #{reportId}
-        </Text>
+
+        <Space>
+          <Button
+            icon={tocCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setTocCollapsed(!tocCollapsed)}
+            style={{ borderRadius: 8 }}
+            size="small"
+          >
+            {tocCollapsed ? '显示目录' : '隐藏目录'}
+          </Button>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            报告 #{reportId}
+          </Text>
+        </Space>
       </div>
 
-      <HtmlPreview html={html} downloadUrl={downloadUrl} onDownload={handleDownload} />
+      {/* Main content: TOC + Preview */}
+      <div style={{ display: 'flex', gap: 20 }}>
+        {/* TOC Sidebar */}
+        {!tocCollapsed && (
+          <Card
+            size="small"
+            style={{
+              width: 240,
+              flexShrink: 0,
+              borderRadius: 14,
+              border: '1px solid #e8e0d0',
+              position: 'sticky',
+              top: 20,
+              alignSelf: 'flex-start',
+              maxHeight: 'calc(100vh - 160px)',
+            }}
+            styles={{ body: { padding: 0 } }}
+          >
+            <ReportTOC
+              html={html}
+              onNavigate={handleTocNavigate}
+              height={Math.min(window.innerHeight - 200, 600)}
+            />
+          </Card>
+        )}
+
+        {/* Preview */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <HtmlPreview
+            ref={previewRef}
+            html={html}
+            downloadUrl={downloadUrl}
+            onDownload={handleDownload}
+          />
+        </div>
+      </div>
     </div>
   );
 }

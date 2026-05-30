@@ -9,7 +9,7 @@ import {
   FileTextOutlined, CheckOutlined, SendOutlined, ReloadOutlined,
   ExperimentOutlined, EyeOutlined, DatabaseOutlined,
   LineChartOutlined, FormOutlined, CheckCircleOutlined,
-  RobotOutlined,
+  RobotOutlined, CopyOutlined,
 } from '@ant-design/icons';
 import {
   getDataTables, analyzeData, generateFigures as apiGenerateFigures,
@@ -19,6 +19,8 @@ import ProgressStepper from '../components/ProgressStepper';
 import MathPreview from '../components/MathPreview';
 import FigurePreview from '../components/FigurePreview';
 import ReviewPanel from '../components/ReviewPanel';
+import LabEmpty from '../components/LabEmpty';
+import PasteDataModal from '../components/PasteDataModal';
 import { useSSE } from '../hooks/useSSE';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { useUnsavedWarning } from '../hooks/useUnsavedWarning';
@@ -53,6 +55,7 @@ function DataEntryStep({
   const [temperature, setTemperature] = useState<number | undefined>();
   const [pressure, setPressure] = useState<number | undefined>();
   const [cellData, setCellData] = useState<Record<string, number>>({});
+  const [pasteModalOpen, setPasteModalOpen] = useState(false);
 
   useEffect(() => {
     getDataTables(experimentId)
@@ -74,7 +77,7 @@ function DataEntryStep({
 
   if (loading) return <Spin tip="加载数据表格..." />;
   if (error) return <Alert message={error} type="error" showIcon style={{ borderRadius: 10 }} />;
-  if (tables.length === 0) return <Empty description="该实验暂无数据表格定义，请检查讲义文件" />;
+  if (tables.length === 0) return <LabEmpty type="data" description="该实验暂无数据表格定义，请检查讲义文件" />;
 
   const hasEnvParams = tables.some((t) => (t as unknown as { temperature?: boolean }).temperature);
 
@@ -163,21 +166,38 @@ function DataEntryStep({
       </Collapse>
 
       <div style={{ marginTop: 28, textAlign: 'center' }}>
-        <Button
-          type="primary"
-          size="large"
-          icon={<CalculatorOutlined />}
-          onClick={handleSubmit}
-          style={{ borderRadius: 12, height: 48, fontWeight: 600, paddingInline: 32, fontSize: 15 }}
-        >
-          提交数据并开始分析
-        </Button>
+        <Space size="middle">
+          <Button
+            icon={<CopyOutlined />}
+            onClick={() => setPasteModalOpen(true)}
+            style={{ borderRadius: 10 }}
+          >
+            从 Excel 粘贴数据
+          </Button>
+          <Button
+            type="primary"
+            size="large"
+            icon={<CalculatorOutlined />}
+            onClick={handleSubmit}
+            style={{ borderRadius: 12, height: 48, fontWeight: 600, paddingInline: 32, fontSize: 15 }}
+          >
+            提交数据并开始分析
+          </Button>
+        </Space>
         <div style={{ marginTop: 10 }}>
           <Tag color="processing" style={{ borderRadius: 8 }}>
             已填写 {Object.keys(cellData).length} 个数据点
           </Tag>
         </div>
       </div>
+
+      <PasteDataModal
+        open={pasteModalOpen}
+        tables={tables}
+        currentData={cellData}
+        onClose={() => setPasteModalOpen(false)}
+        onApply={(data) => setCellData(data)}
+      />
     </div>
   );
 }
@@ -580,7 +600,7 @@ export default function PostLabFlow() {
             </>
           ) : (
             <div style={{ textAlign: 'center', padding: 32 }}>
-              <Empty description="未生成图形" />
+              <LabEmpty type="figure" description="未生成图形" />
               <Button type="primary" onClick={() => setStep(3)} style={{ marginTop: 16, borderRadius: 10 }}>
                 跳过，继续
               </Button>

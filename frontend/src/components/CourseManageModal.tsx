@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Modal, Descriptions, Button, Space, Popconfirm, message, Tag, Input, Typography, Table, Spin, Empty } from 'antd';
+import { Modal, Button, Popconfirm, message, Tag, Input, Typography, Table, Spin } from 'antd';
 import {
   DeleteOutlined,
   ReloadOutlined,
@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import { deleteCourse, reparseCourse, getExperiments } from '../api/client';
 import type { Experiment } from '../types';
+import LabEmpty from './LabEmpty';
 
 interface Props {
   open: boolean;
@@ -110,7 +111,7 @@ export default function CourseManageModal({
         {loading ? (
           <Spin style={{ display: 'block', textAlign: 'center', padding: 24 }} />
         ) : experiments.length === 0 ? (
-          <Empty description="暂无实验" />
+          <LabEmpty type="experiment" description="暂无实验" />
         ) : (
           <Table
             dataSource={experiments.map((e: Experiment) => ({ ...e, key: e.id }))}

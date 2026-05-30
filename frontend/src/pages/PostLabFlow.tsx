@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Button, Space, Input, message, Result, Table, InputNumber,
-  Typography, Divider, Spin, Collapse, Descriptions, Empty, Tag, Alert, Row, Col,
+  Typography, Divider, Spin, Collapse, Descriptions, Empty, Tag, Alert, Row, Col, Modal,
 } from 'antd';
 import {
   ArrowLeftOutlined, CalculatorOutlined, PictureOutlined,
@@ -20,6 +20,8 @@ import MathPreview from '../components/MathPreview';
 import FigurePreview from '../components/FigurePreview';
 import ReviewPanel from '../components/ReviewPanel';
 import { useSSE } from '../hooks/useSSE';
+import { useAutoSave } from '../hooks/useAutoSave';
+import { useUnsavedWarning } from '../hooks/useUnsavedWarning';
 import type { DataTableSchema, ReviewResult } from '../types';
 
 const POSTLAB_STEPS = [
@@ -298,6 +300,63 @@ export default function PostLabFlow() {
   const reviseSse = useSSE();
   const studentInfo = useRef(JSON.parse(sessionStorage.getItem('studentInfo') || '{}')).current;
 
+  // ---- Auto-save & restore ----
+  const autoSave = useAutoSave({ key: `postlab_${cId}_${eId}` });
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+  const [savedTimestamp, setSavedTimestamp] = useState<number | null>(null);
+
+  useEffect(() => {
+    const saved = autoSave.restore();
+    if (saved?.data && (Object.keys(saved.data.cellData || {}).length > 0 || Object.keys(saved.data.sectionContents || {}).length > 0)) {
+      setSavedTimestamp(saved.timestamp);
+      setRestoreModalOpen(true);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save on changes
+  useEffect(() => {
+    autoSave.save({
+      step, rawData, temperature, pressure,
+      analysisRes, sectionContents, activePostSection,
+    } as unknown as Record<string, unknown>);
+  }, [step, rawData, temperature, pressure, analysisRes, sectionContents, activePostSection, autoSave]);
+
+  // Unsaved warning
+  const hasUnsaved = (step > 0 || Object.keys(sectionContents).length > 0) && !complete;
+  const blocker = useUnsavedWarning(hasUnsaved);
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      Modal.confirm({
+        title: '未保存的内容',
+        content: '您有已填写或生成的内容尚未保存为报告，离开后可能丢失。确定要离开吗？',
+        okText: '离开',
+        cancelText: '留下继续',
+        onOk: () => blocker.proceed?.(),
+        onCancel: () => blocker.reset?.(),
+      });
+    }
+  }, [blocker]);
+
+  const handleRestore = () => {
+    const saved = autoSave.restore();
+    if (saved?.data) {
+      setStep((saved.data.step as number) || 0);
+      setRawData((saved.data.rawData as Record<string, unknown>) || {});
+      setTemperature(saved.data.temperature as number | undefined);
+      setPressure(saved.data.pressure as number | undefined);
+      setAnalysisRes((saved.data.analysisRes as Record<string, unknown>) || {});
+      setSectionContents((saved.data.sectionContents as Record<string, string>) || {});
+      setActivePostSection((saved.data.activePostSection as string) || 'records');
+      message.success('已恢复上次进度');
+    }
+    setRestoreModalOpen(false);
+  };
+
+  const handleDiscardSaved = () => {
+    autoSave.clear();
+    setRestoreModalOpen(false);
+  };
+
   // ---- Step handlers ----
   const handleDataComplete = useCallback((d: Record<string, unknown>, temp: number, pres: number) => {
     setRawData(d); setTemperature(temp); setPressure(pres); setStep(1);
@@ -370,12 +429,13 @@ export default function PostLabFlow() {
       sessionStorage.setItem('lastReportHtml', result.html);
       sessionStorage.setItem('lastReportId', result.report_id);
       sessionStorage.setItem('lastReportPath', result.html_path);
+      autoSave.clear();
       setComplete(true);
     } catch (err) {
       message.destroy('assemble');
       message.error(`组装失败：${(err as Error).message}`);
     }
-  }, [cId, eId, sectionContents, analysisRes, studentInfo]);
+  }, [cId, eId, sectionContents, analysisRes, studentInfo, autoSave]);
 
   // ---- Completion screen ----
   if (complete) {
@@ -439,6 +499,22 @@ export default function PostLabFlow() {
 
   return (
     <div style={{ maxWidth: 920, margin: '0 auto' }}>
+      {/* ---- Restore modal ---- */}
+      <Modal
+        title="恢复上次进度？"
+        open={restoreModalOpen}
+        onOk={handleRestore}
+        onCancel={handleDiscardSaved}
+        okText="恢复进度"
+        cancelText="放弃"
+      >
+        <Typography.Text type="secondary">
+          检测到上次未完成的进度
+          {savedTimestamp && `（${new Date(savedTimestamp).toLocaleString('zh-CN')}）`}。
+          是否恢复已填写的数据和已生成的内容？
+        </Typography.Text>
+      </Modal>
+
       {/* ---- Back button ---- */}
       <Button
         type="text"

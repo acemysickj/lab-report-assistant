@@ -12,7 +12,11 @@ mpl.rcParams.update({
     "font.size": 9,
     "axes.spines.right": False,
     "axes.spines.top": False,
-    "axes.linewidth": 0.7,
+    "axes.linewidth": 1.2,       # 坐标轴粗线 (三线图规范)
+    "xtick.major.width": 0.5,    # 刻度线细线
+    "ytick.major.width": 0.5,
+    "xtick.major.size": 3.5,
+    "ytick.major.size": 3.5,
     "legend.frameon": False,
 })
 

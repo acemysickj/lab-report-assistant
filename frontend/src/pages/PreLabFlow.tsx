@@ -1,15 +1,37 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Button, Space, Input, message, Result, Typography } from 'antd';
-import { ArrowLeftOutlined, ArrowRightOutlined, CheckOutlined, SendOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Card, Button, Space, Input, message, Result, Typography, Alert, Tag, Row, Col } from 'antd';
+import {
+  ArrowLeftOutlined,
+  ArrowRightOutlined,
+  SendOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  RobotOutlined,
+  CheckCircleOutlined,
+  BulbOutlined,
+} from '@ant-design/icons';
 import { SECTION_LABELS, type PreLabSection } from '../types';
 import { assemblePrelab as apiAssemble } from '../api/client';
 import { useSSE } from '../hooks/useSSE';
 import ProgressStepper from '../components/ProgressStepper';
 import MathPreview from '../components/MathPreview';
+import ReviewPanel from '../components/ReviewPanel';
+import type { ReviewResult } from '../types';
 
 const PRELAB_SECTIONS: PreLabSection[] = ['purpose', 'principle', 'equipment', 'procedure'];
-const PRELAB_STEPS = PRELAB_SECTIONS.map((s) => ({ title: SECTION_LABELS[s] }));
+const PRELAB_STEPS = PRELAB_SECTIONS.map((s) => ({
+  title: SECTION_LABELS[s],
+  description: '',
+}));
+
+// Section icons
+const SECTION_ICONS: Record<string, React.ReactNode> = {
+  purpose: <BulbOutlined />,
+  principle: <RobotOutlined />,
+  equipment: <CheckCircleOutlined />,
+  procedure: <EditOutlined />,
+};
 
 export default function PreLabFlow() {
   const { courseId, experimentId } = useParams<{ courseId: string; experimentId: string }>();
@@ -23,23 +45,32 @@ export default function PreLabFlow() {
   const [isEditing, setIsEditing] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [complete, setComplete] = useState(false);
+  const [reviewResult, setReviewResult] = useState<ReviewResult | null>(null);
+  const [isReviewing, setIsReviewing] = useState(false);
 
   const sse = useSSE();
   const reviseSse = useSSE();
 
-  const studentInfo = JSON.parse(sessionStorage.getItem('studentInfo') || '{}');
+  const studentInfo = useRef(JSON.parse(sessionStorage.getItem('studentInfo') || '{}')).current;
   const currentSection = PRELAB_SECTIONS[currentStep];
 
+  // ---- Handlers ----
   const handleGenerate = useCallback(() => {
+    sse.reset();
+    reviseSse.reset();
+    setEditingContent('');
+    setIsEditing(false);
+    setReviewResult(null);
     sse.startStream('/reports/prelab/generate', {
       course_id: cId, experiment_id: eId,
       section: currentSection, student_info: studentInfo,
     });
-  }, [cId, eId, currentSection, studentInfo, sse]);
+  }, [cId, eId, currentSection, studentInfo, sse, reviseSse]);
 
   const handleRevise = useCallback(() => {
-    if (!feedback.trim()) return;
+    if (!feedback.trim()) { message.warning('请输入修改意见'); return; }
     const content = editingContent || sse.content;
+    if (!content) { message.warning('请先生成内容'); return; }
     reviseSse.startStream('/reports/prelab/revise', {
       course_id: cId, experiment_id: eId,
       section: currentSection, content, feedback: feedback.trim(),
@@ -49,28 +80,52 @@ export default function PreLabFlow() {
 
   const handleAccept = useCallback(() => {
     const content = editingContent || reviseSse.content || sse.content;
+    if (!content) { message.warning('请先生成或修改内容'); return; }
+
     setSections((prev) => ({ ...prev, [currentSection]: content }));
 
     if (currentStep < PRELAB_SECTIONS.length - 1) {
       setCurrentStep((s) => s + 1);
       sse.reset(); reviseSse.reset();
       setEditingContent(''); setIsEditing(false);
+      setReviewResult(null);
     } else {
       handleAssemble(content);
     }
-  }, [currentStep, editingContent, sse.content, reviseSse.content]);
+  }, [currentStep, editingContent, sse.content, reviseSse.content, currentSection]);
 
   const handleAssemble = useCallback(async (lastContent?: string) => {
-    const allSections = { ...sections, [currentSection]: lastContent || editingContent || reviseSse.content || sse.content };
-    message.loading({ content: '组装报告中...', key: 'assemble' });
-    const result = await apiAssemble({ course_id: cId, experiment_id: eId, sections: allSections, student_info: studentInfo });
-    message.destroy('assemble');
-    sessionStorage.setItem('lastReportHtml', result.html);
-    sessionStorage.setItem('lastReportId', result.report_id);
-    sessionStorage.setItem('lastReportPath', result.html_path);
-    setComplete(true);
+    const allSections = {
+      ...sections,
+      [currentSection]: lastContent || editingContent || reviseSse.content || sse.content,
+    };
+
+    setIsReviewing(true);
+    message.loading({ content: '正在审查并组装报告...', key: 'assemble', duration: 0 });
+
+    try {
+      const result = await apiAssemble({
+        course_id: cId, experiment_id: eId,
+        sections: allSections, student_info: studentInfo,
+      });
+      message.destroy('assemble');
+      sessionStorage.setItem('lastReportHtml', result.html);
+      sessionStorage.setItem('lastReportId', result.report_id);
+      sessionStorage.setItem('lastReportPath', result.html_path);
+      setReviewResult({ passed: true, feedback: '报告已成功生成', round: 1 });
+      setComplete(true);
+    } catch (err) {
+      message.destroy('assemble');
+      setIsReviewing(false);
+      setReviewResult({
+        passed: false,
+        feedback: `组装失败：${(err as Error).message || '未知错误'}`,
+        round: 1,
+      });
+    }
   }, [cId, eId, sections, currentSection, editingContent, sse.content, reviseSse.content, studentInfo]);
 
+  // ---- Completion screen ----
   if (complete) {
     const reportId = sessionStorage.getItem('lastReportId') || '';
     return (
@@ -78,109 +133,299 @@ export default function PreLabFlow() {
         status="success"
         title="预习报告生成完成"
         subTitle="报告已保存，可以预览或下载"
+        icon={
+          <div style={{
+            width: 80, height: 80, borderRadius: 20,
+            background: 'linear-gradient(135deg, #eef5ef 0%, #dce9df 100%)',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <CheckCircleOutlined style={{ color: '#3d7a4f', fontSize: 40 }} />
+          </div>
+        }
         extra={[
-          <Button key="preview" type="primary" size="large" onClick={() => navigate(`/preview/${reportId}`)}>预览报告</Button>,
-          <Button key="home" size="large" onClick={() => navigate('/')}>返回首页</Button>,
+          <Button key="preview" type="primary" size="large" onClick={() => navigate(`/preview/${reportId}`)}
+            style={{ borderRadius: 10, fontWeight: 600 }}>
+            预览报告
+          </Button>,
+          <Button key="home" size="large" onClick={() => navigate('/')}
+            style={{ borderRadius: 10 }}>
+            返回首页
+          </Button>,
         ]}
       />
     );
   }
 
   const currentContent = editingContent || reviseSse.content || sse.content;
+  const isLastStep = currentStep >= PRELAB_SECTIONS.length - 1;
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
-      {/* Top bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(`/setup/${encodeURIComponent(cId)}/${encodeURIComponent(eId)}`)}
-          style={{ color: '#6b5e4a', paddingLeft: 0 }}>
-          返回
-        </Button>
-        <ProgressStepper current={currentStep} steps={PRELAB_STEPS} />
-        <div style={{ width: 80 }} />
-      </div>
+      {/* ---- Top bar: back + stepper ---- */}
+      <Row justify="space-between" align="middle" style={{ marginBottom: 32 }}>
+        <Col>
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate(`/setup/${encodeURIComponent(cId)}/${encodeURIComponent(eId)}`)}
+            style={{ color: '#6b5e4a', paddingLeft: 0, fontWeight: 500 }}
+          >
+            返回
+          </Button>
+        </Col>
+        <Col flex="auto" style={{ maxWidth: 500, padding: '0 24px' }}>
+          <ProgressStepper current={currentStep} steps={PRELAB_STEPS} />
+        </Col>
+        <Col style={{ width: 80 }} />
+      </Row>
 
-      <Card bodyStyle={{ padding: '28px 32px' }}>
-        {/* Generate button (initial state) */}
-        {!sse.content && !sse.streaming && (
-          <div style={{ textAlign: 'center', padding: '48px 0' }}>
-            <Button type="primary" size="large" onClick={handleGenerate} style={{ height: 48, fontSize: 15, paddingInline: 32 }}>
+      {/* ---- Completed sections summary ---- */}
+      {Object.keys(sections).length > 0 && (
+        <div style={{ marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {PRELAB_SECTIONS.map((s) => (
+            <Tag
+              key={s}
+              color={sections[s] ? 'success' : 'default'}
+              icon={sections[s] ? <CheckCircleOutlined /> : undefined}
+              style={{ borderRadius: 8, padding: '2px 10px', fontSize: 12 }}
+            >
+              {SECTION_LABELS[s]}
+            </Tag>
+          ))}
+        </div>
+      )}
+
+      {/* ---- Main content card ---- */}
+      <Card
+        style={{ borderRadius: 14, border: '1px solid #e8e0d0' }}
+        styles={{ body: { padding: '32px 36px' } }}
+      >
+        {/* Section header */}
+        <div style={{ marginBottom: 24, textAlign: 'center' }}>
+          <Tag
+            color="green"
+            style={{
+              borderRadius: 12,
+              padding: '4px 16px',
+              fontSize: 13,
+              fontWeight: 600,
+              marginBottom: 12,
+            }}
+            icon={SECTION_ICONS[currentSection]}
+          >
+            {SECTION_LABELS[currentSection]}
+          </Tag>
+          <Typography.Text type="secondary" style={{ display: 'block', fontSize: 13 }}>
+            第 {currentStep + 1} / {PRELAB_SECTIONS.length} 部分
+          </Typography.Text>
+        </div>
+
+        {/* ---- Initial: Generate button ---- */}
+        {!sse.content && !sse.streaming && !reviseSse.content && (
+          <div style={{ textAlign: 'center', padding: '40px 0 20px' }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: 16,
+              background: 'linear-gradient(135deg, #eef5ef 0%, #dce9df 100%)',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 20,
+            }}>
+              <RobotOutlined style={{ color: '#3d7a4f', fontSize: 28 }} />
+            </div>
+            <Button
+              type="primary"
+              size="large"
+              onClick={handleGenerate}
+              style={{
+                height: 48,
+                fontSize: 15,
+                paddingInline: 36,
+                borderRadius: 12,
+                fontWeight: 600,
+              }}
+            >
               🤖 AI 生成「{SECTION_LABELS[currentSection]}」
             </Button>
-            <div style={{ marginTop: 14 }}>
-              <Text style={{ color: '#8b7a60', fontSize: 13 }}>将根据实验讲义和格式规范自动生成内容</Text>
-            </div>
+            <Typography.Text
+              style={{ color: '#8b7a60', fontSize: 13, display: 'block', marginTop: 16 }}
+            >
+              将根据实验讲义和格式规范自动生成内容，并经过 AI 自动审查
+            </Typography.Text>
           </div>
         )}
 
-        {/* Content preview */}
-        {(sse.content || sse.streaming) && (
-          <MathPreview html={currentContent} loading={sse.streaming || reviseSse.streaming}
-            status={sse.status || reviseSse.status} height="360px" />
+        {/* ---- Content preview ---- */}
+        {(sse.content || sse.streaming || reviseSse.content) && (
+          <div style={{
+            borderRadius: 12,
+            overflow: 'hidden',
+            border: '1px solid #e8e0d0',
+            boxShadow: '0 1px 4px rgba(44,36,22,0.04)',
+          }}>
+            <MathPreview
+              html={currentContent}
+              loading={sse.streaming || reviseSse.streaming}
+              status={sse.status || reviseSse.status}
+              height="400px"
+            />
+          </div>
         )}
 
+        {/* ---- Error ---- */}
         {sse.error && (
-          <div style={{ color: '#b54b4b', marginTop: 16, textAlign: 'center' }}>
-            {sse.error}
-            <Button onClick={handleGenerate} style={{ marginLeft: 8 }}>重试</Button>
-          </div>
+          <Alert
+            message="生成失败"
+            description={sse.error}
+            type="error"
+            showIcon
+            style={{ marginTop: 16, borderRadius: 10 }}
+            action={<Button onClick={handleGenerate}>重试</Button>}
+          />
         )}
 
-        {/* Toolbar */}
+        {/* ---- Toolbar: edit / re-generate ---- */}
         {currentContent && !sse.streaming && !reviseSse.streaming && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-            <Space>
-              {!isEditing ? (
-                <>
-                  <Button onClick={() => { setEditingContent(currentContent); setIsEditing(true); }}>编辑内容</Button>
-                  <Button icon={<ReloadOutlined />} onClick={() => { sse.reset(); reviseSse.reset(); setEditingContent(''); setIsEditing(false); }}>
-                    重新生成
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button onClick={() => setEditingContent(currentContent)}>重置为生成内容</Button>
-                  <Button type="primary" ghost onClick={() => setIsEditing(false)}>完成编辑</Button>
-                </>
-              )}
-            </Space>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: 20,
+              paddingTop: 16,
+              borderTop: '1px solid #f0ebe0',
+            }}
+          >
+            {!isEditing ? (
+              <Space>
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => { setEditingContent(currentContent); setIsEditing(true); }}
+                  style={{ borderRadius: 8 }}
+                >
+                  编辑内容
+                </Button>
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={() => {
+                    sse.reset(); reviseSse.reset();
+                    setEditingContent(''); setIsEditing(false);
+                  }}
+                  style={{ borderRadius: 8 }}
+                >
+                  重新生成
+                </Button>
+              </Space>
+            ) : (
+              <Space>
+                <Button onClick={() => setEditingContent(currentContent)} style={{ borderRadius: 8 }}>
+                  重置为生成内容
+                </Button>
+                <Button type="primary" ghost onClick={() => setIsEditing(false)} style={{ borderRadius: 8 }}>
+                  完成编辑
+                </Button>
+              </Space>
+            )}
           </div>
         )}
       </Card>
 
-      {/* Feedback + Actions */}
+      {/* ---- Feedback + Actions card ---- */}
       {currentContent && !sse.streaming && !reviseSse.streaming && (
-        <Card bodyStyle={{ padding: '20px 32px' }} style={{ marginTop: 20 }}>
-          <div style={{ marginBottom: 14, fontWeight: 600, fontSize: 14 }}>💬 给 AI 提修改意见</div>
-          <Input.TextArea
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            placeholder="例如：原理部分太简略，请补充公式推导过程..."
-            rows={3}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
-            <Button
-              type="primary"
-              icon={<SendOutlined />}
-              onClick={handleRevise}
-              loading={reviseSse.streaming}
-              disabled={!feedback.trim()}
-            >
-              提交反馈让 AI 修改
-            </Button>
-            <Button
-              size="large"
-              icon={<ArrowRightOutlined />}
-              onClick={handleAccept}
-            >
-              {currentStep < PRELAB_SECTIONS.length - 1 ? '下一步' : '组装报告'}
-            </Button>
-          </div>
-          {reviseSse.error && <div style={{ color: '#b54b4b', marginTop: 12 }}>{reviseSse.error}</div>}
+        <Card
+          style={{ marginTop: 20, borderRadius: 14, border: '1px solid #e8e0d0' }}
+          styles={{ body: { padding: '22px 32px' } }}
+        >
+          {isEditing ? (
+            <div>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 12, fontSize: 14 }}>
+                ✏️ 编辑「{SECTION_LABELS[currentSection]}」
+              </Typography.Text>
+              <Input.TextArea
+                value={editingContent}
+                onChange={(e) => setEditingContent(e.target.value)}
+                rows={10}
+                style={{ fontFamily: 'monospace', fontSize: 13, borderRadius: 10 }}
+              />
+              <div style={{ marginTop: 16, textAlign: 'right' }}>
+                <Button
+                  type="primary"
+                  icon={<ArrowRightOutlined />}
+                  onClick={handleAccept}
+                  size="large"
+                  style={{ borderRadius: 10, fontWeight: 600 }}
+                >
+                  {isLastStep ? '组装报告' : '下一步'}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Feedback input */}
+              <div style={{ marginBottom: 12, fontWeight: 600, fontSize: 14 }}>
+                💬 给 AI 提修改意见
+              </div>
+              <Input.TextArea
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                placeholder="例如：原理部分太简略，请补充公式推导过程..."
+                rows={3}
+                style={{ borderRadius: 10 }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
+                <Space>
+                  <Button
+                    type="primary"
+                    icon={<SendOutlined />}
+                    onClick={handleRevise}
+                    loading={reviseSse.streaming}
+                    disabled={!feedback.trim()}
+                    style={{ borderRadius: 8 }}
+                  >
+                    提交反馈让 AI 修改
+                  </Button>
+                </Space>
+                <Space>
+                  <Button
+                    icon={<ReloadOutlined />}
+                    onClick={handleGenerate}
+                    style={{ borderRadius: 8 }}
+                  >
+                    重新生成
+                  </Button>
+                  <Button
+                    size="large"
+                    icon={<ArrowRightOutlined />}
+                    onClick={handleAccept}
+                    type="primary"
+                    ghost
+                    style={{ borderRadius: 10, fontWeight: 600 }}
+                  >
+                    {isLastStep ? '完成，组装报告' : '满意了，下一步'}
+                  </Button>
+                </Space>
+              </div>
+              {reviseSse.error && (
+                <Alert message={reviseSse.error} type="error" showIcon style={{ marginTop: 12, borderRadius: 8 }} />
+              )}
+            </>
+          )}
         </Card>
+      )}
+
+      {/* ---- Review panel ---- */}
+      {isReviewing && (
+        <div style={{ marginTop: 20 }}>
+          <ReviewPanel
+            review={reviewResult}
+            reviewing={isReviewing && !reviewResult}
+            onRetry={() => {
+              setIsReviewing(false);
+              setReviewResult(null);
+              setCurrentStep(PRELAB_SECTIONS.length - 1);
+            }}
+            onAccept={() => setComplete(true)}
+          />
+        </div>
       )}
     </div>
   );
 }
-
-const { Text } = Typography;

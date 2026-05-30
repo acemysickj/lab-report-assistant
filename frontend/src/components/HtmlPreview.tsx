@@ -1,5 +1,5 @@
 import { Card, Button, Space, Dropdown } from 'antd';
-import { DownloadOutlined, FullscreenOutlined, FileTextOutlined } from '@ant-design/icons';
+import { DownloadOutlined, FullscreenOutlined, FileTextOutlined, EyeOutlined } from '@ant-design/icons';
 
 interface Props {
   html: string;
@@ -9,20 +9,13 @@ interface Props {
 }
 
 export default function HtmlPreview({ html, title = '报告预览', downloadUrl, onDownload }: Props) {
-
   const handleFullscreen = () => {
     const w = window.open('', '_blank', 'width=900,height=700');
-    if (w) {
-      w.document.write(html);
-      w.document.close();
-    }
+    if (w) { w.document.write(html); w.document.close(); }
   };
 
   const handleDownload = (format: 'html' | 'pdf' | 'md') => {
-    if (onDownload) {
-      onDownload(format);
-      return;
-    }
+    if (onDownload) { onDownload(format); return; }
     if (!downloadUrl) return;
     const base = downloadUrl.replace(/\/download(\/html)?$/, '');
     window.location.href = `${base}/download/${format}`;
@@ -30,10 +23,19 @@ export default function HtmlPreview({ html, title = '报告预览', downloadUrl,
 
   return (
     <Card
-      title={title}
+      title={
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
+          <EyeOutlined style={{ color: '#3d7a4f' }} />
+          {title}
+        </span>
+      }
       extra={
         <Space>
-          <Button icon={<FullscreenOutlined />} onClick={handleFullscreen}>
+          <Button
+            icon={<FullscreenOutlined />}
+            onClick={handleFullscreen}
+            style={{ borderRadius: 8 }}
+          >
             新窗口打开
           </Button>
           <Dropdown.Button
@@ -47,15 +49,23 @@ export default function HtmlPreview({ html, title = '报告预览', downloadUrl,
               ],
               onClick: ({ key }) => handleDownload(key as 'html' | 'pdf' | 'md'),
             }}
+            style={{ borderRadius: 8 }}
           >
-            下载
+            <FileTextOutlined /> 下载
           </Dropdown.Button>
         </Space>
       }
+      style={{ borderRadius: 14, border: '1px solid #e8e0d0' }}
     >
       <iframe
         srcDoc={html}
-        style={{ width: '100%', height: '600px', border: '1px solid #e0d8c8', borderRadius: '4px' }}
+        style={{
+          width: '100%',
+          height: '620px',
+          border: '1px solid #e8e0d0',
+          borderRadius: 10,
+          background: '#fff',
+        }}
         title="Report Preview"
       />
     </Card>

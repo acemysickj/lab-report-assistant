@@ -8,11 +8,13 @@ import {
   PlusOutlined,
   BookOutlined,
   SettingOutlined,
+  MoreOutlined,
 } from '@ant-design/icons';
 import type { ItemType } from 'antd/es/menu/interface';
 import { getCourses, getExperiments } from '../api/client';
 import type { Course, Experiment } from '../types';
 import NewCourseModal from './NewCourseModal';
+import CourseManageModal from './CourseManageModal';
 
 const { Sider, Content } = Layout;
 const { Text } = Typography;
@@ -29,6 +31,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [loadingExperiments, setLoadingExperiments] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [manageModalOpen, setManageModalOpen] = useState(false);
 
   const loadCourses = useCallback(() => {
     setLoadingCourses(true);
@@ -240,22 +243,37 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     suffixIcon={<SettingOutlined style={{ color: '#b0a48e', fontSize: 12 }} />}
                   />
                 )}
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<PlusOutlined />}
-                  onClick={() => setModalOpen(true)}
-                  style={{
-                    width: '100%',
-                    marginTop: 8,
-                    color: '#8b7a60',
-                    fontWeight: 500,
-                    borderRadius: 8,
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  新建课程
-                </Button>
+                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<PlusOutlined />}
+                    onClick={() => setModalOpen(true)}
+                    style={{
+                      flex: 1,
+                      color: '#8b7a60',
+                      fontWeight: 500,
+                      borderRadius: 8,
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    新建课程
+                  </Button>
+                  <Tooltip title="管理课程">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<SettingOutlined />}
+                      onClick={() => setManageModalOpen(true)}
+                      disabled={!selectedCourse}
+                      style={{
+                        color: '#8b7a60',
+                        borderRadius: 8,
+                        transition: 'all 0.2s',
+                      }}
+                    />
+                  </Tooltip>
+                </div>
               </div>
             </>
           )}
@@ -331,6 +349,21 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </Layout>
 
       <NewCourseModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={loadCourses} />
+      <CourseManageModal
+        open={manageModalOpen}
+        courseId={selectedCourse}
+        courseName={courses.find((c) => c.id === selectedCourse)?.name || ''}
+        onClose={() => setManageModalOpen(false)}
+        onDeleted={loadCourses}
+        onUpdated={() => {
+          // Reload experiments after reparse
+          if (selectedCourse) {
+            getExperiments(selectedCourse)
+              .then((res) => setExperiments(res.experiments))
+              .catch(() => {});
+          }
+        }}
+      />
     </Layout>
   );
 }

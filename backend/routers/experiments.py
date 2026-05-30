@@ -155,3 +155,29 @@ async def api_delete_course(course_id: str):
 
     shutil.rmtree(course_dir)
     return {"status": "deleted"}
+
+
+@router.post("/courses/{course_id}/reparse")
+async def api_reparse_course(course_id: str, description: str = Form(default="")):
+    """Re-parse a course's experiment index from a new description."""
+    course_dir = REFERENCE_DIR / course_id
+    if not course_dir.exists():
+        raise HTTPException(status_code=404, detail="课程不存在")
+
+    if not description or not description.strip():
+        raise HTTPException(status_code=400, detail="请提供实验列表描述")
+
+    try:
+        index_json_str = await _generate_index_json(course_id, description.strip())
+        parsed = json.loads(index_json_str)
+        (course_dir / "handout" / "index.json").write_text(
+            json.dumps(parsed, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return {
+            "status": "ok",
+            "message": "实验列表已重新生成",
+            "experiments": parsed,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"重新解析失败：{str(e)}")

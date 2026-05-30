@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Button, Space, Input, message, Result, Typography, Alert, Tag, Row, Col } from 'antd';
+import { Card, Button, Space, Input, message, Result, Typography, Alert, Tag, Row, Col, Modal } from 'antd';
 import {
   ArrowLeftOutlined,
   ArrowRightOutlined,
@@ -14,6 +14,8 @@ import {
 import { SECTION_LABELS, type PreLabSection } from '../types';
 import { assemblePrelab as apiAssemble } from '../api/client';
 import { useSSE } from '../hooks/useSSE';
+import { useAutoSave } from '../hooks/useAutoSave';
+import { useUnsavedWarning } from '../hooks/useUnsavedWarning';
 import ProgressStepper from '../components/ProgressStepper';
 import MathPreview from '../components/MathPreview';
 import ReviewPanel from '../components/ReviewPanel';
@@ -53,6 +55,56 @@ export default function PreLabFlow() {
 
   const studentInfo = useRef(JSON.parse(sessionStorage.getItem('studentInfo') || '{}')).current;
   const currentSection = PRELAB_SECTIONS[currentStep];
+
+  // ---- Auto-save & restore ----
+  const autoSave = useAutoSave({ key: `prelab_${cId}_${eId}` });
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+  const [savedTimestamp, setSavedTimestamp] = useState<number | null>(null);
+
+  // Check for saved progress on mount
+  useEffect(() => {
+    const saved = autoSave.restore();
+    if (saved?.data && Object.keys(saved.data.sections || {}).length > 0) {
+      setSavedTimestamp(saved.timestamp);
+      setRestoreModalOpen(true);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save state
+  useEffect(() => {
+    autoSave.save({ sections, currentStep } as unknown as Record<string, unknown>);
+  }, [sections, currentStep, autoSave]);
+
+  // Unsaved warning
+  const hasUnsaved = Object.keys(sections).length > 0 && !complete;
+  const blocker = useUnsavedWarning(hasUnsaved);
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      Modal.confirm({
+        title: '未保存的内容',
+        content: '您有已生成但未组装报告的章节内容，离开后可能丢失。确定要离开吗？',
+        okText: '离开',
+        cancelText: '留下继续',
+        onOk: () => blocker.proceed?.(),
+        onCancel: () => blocker.reset?.(),
+      });
+    }
+  }, [blocker]);
+
+  const handleRestore = () => {
+    const saved = autoSave.restore();
+    if (saved?.data) {
+      setSections((saved.data.sections as Record<string, string>) || {});
+      setCurrentStep((saved.data.currentStep as number) || 0);
+      message.success('已恢复上次进度');
+    }
+    setRestoreModalOpen(false);
+  };
+
+  const handleDiscardSaved = () => {
+    autoSave.clear();
+    setRestoreModalOpen(false);
+  };
 
   // ---- Handlers ----
   const handleGenerate = useCallback(() => {
@@ -113,6 +165,7 @@ export default function PreLabFlow() {
       sessionStorage.setItem('lastReportId', result.report_id);
       sessionStorage.setItem('lastReportPath', result.html_path);
       setReviewResult({ passed: true, feedback: '报告已成功生成', round: 1 });
+      autoSave.clear();
       setComplete(true);
     } catch (err) {
       message.destroy('assemble');
@@ -161,6 +214,22 @@ export default function PreLabFlow() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
+      {/* ---- Restore modal ---- */}
+      <Modal
+        title="恢复上次进度？"
+        open={restoreModalOpen}
+        onOk={handleRestore}
+        onCancel={handleDiscardSaved}
+        okText="恢复进度"
+        cancelText="放弃"
+      >
+        <Typography.Text type="secondary">
+          检测到上次未完成的进度
+          {savedTimestamp && `（${new Date(savedTimestamp).toLocaleString('zh-CN')}）`}。
+          是否恢复已生成的章节内容？
+        </Typography.Text>
+      </Modal>
+
       {/* ---- Top bar: back + stepper ---- */}
       <Row justify="space-between" align="middle" style={{ marginBottom: 32 }}>
         <Col>

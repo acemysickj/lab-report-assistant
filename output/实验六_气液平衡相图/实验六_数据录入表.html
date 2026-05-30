@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>实验六 数据录入表 - 二组分完全互溶系统气-液平衡相图的绘制</title>
+<style>
+  body { font-family: "宋体", SimSun, serif; font-size: 14px; max-width: 1100px; margin: 20px auto; padding: 0 20px; }
+  h1 { text-align: center; font-size: 18px; margin-bottom: 5px; }
+  h2 { font-size: 15px; margin: 25px 0 10px 0; }
+  p.note { color: #666; font-size: 12px; margin: 2px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 12px; }
+  th, td { border: 1px solid #999; padding: 4px 3px; text-align: center; }
+  th { background: #e8e8e8; font-weight: bold; }
+  input { width: 90%; border: 1px solid #ccc; padding: 2px 4px; text-align: center; font-size: 12px; box-sizing: border-box; }
+  input:focus { border-color: #4a90d9; outline: none; background: #f0f7ff; }
+  .param-table td { text-align: left; padding: 6px 8px; }
+  .param-table td.label { text-align: right; width: 200px; font-weight: bold; background: #f5f5f5; }
+  .param-table input { width: 150px; text-align: left; }
+  .section { margin: 10px 0; }
+  .btn-row { text-align: center; margin: 20px 0; }
+  button { padding: 8px 24px; font-size: 14px; cursor: pointer; margin: 0 8px; }
+  .btn-save { background: #4a90d9; color: #fff; border: none; border-radius: 4px; }
+  .btn-save:hover { background: #357abd; }
+  .btn-copy { background: #fff; color: #333; border: 1px solid #ccc; border-radius: 4px; }
+  .small { font-size: 11px; color: #888; }
+</style>
+</head>
+<body>
+
+<h1>实验六 数据录入表</h1>
+<p style="text-align:center;color:#555;">二组分完全互溶系统气—液平衡相图的绘制</p>
+
+<hr>
+
+<!-- 基础参数 -->
+<h2>一、基础参数</h2>
+<table class="param-table">
+  <tr>
+    <td class="label">实验室温度（工作曲线测定时）：</td>
+    <td><input id="lab_temp" placeholder="如 25.0"> ℃</td>
+    <td class="label">大气压力：</td>
+    <td><input id="atm_pressure" placeholder="如 101.3"> kPa</td>
+  </tr>
+</table>
+
+<!-- 表1: 工作曲线 -->
+<h2>二、表 1 — 工作曲线：折光率与环己烷体积分数的关系</h2>
+<p class="note">每个样品测量 3 次折光率，保留 4 位小数。温度：以上述实验室温度为准。</p>
+
+<table id="work_curve">
+  <tr>
+    <th>环己烷<br>体积分数</th>
+    <th>对应样品</th>
+    <th>折光率 n₁</th>
+    <th>折光率 n₂</th>
+    <th>折光率 n₃</th>
+  </tr>
+  <tr>
+    <td>0</td><td>纯乙醇</td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+  </tr>
+  <tr>
+    <td>0.10</td><td>1 号</td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+  </tr>
+  <tr>
+    <td>0.20</td><td>2 号</td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+  </tr>
+  <tr>
+    <td>0.30</td><td>3 号</td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+  </tr>
+  <tr>
+    <td>0.40</td><td>4 号</td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+  </tr>
+  <tr>
+    <td>0.50</td><td>5 号</td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+  </tr>
+  <tr>
+    <td>0.60</td><td>6 号</td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+  </tr>
+  <tr>
+    <td>0.70</td><td>7 号</td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+  </tr>
+  <tr>
+    <td>0.80</td><td>8 号</td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+  </tr>
+  <tr>
+    <td>0.90</td><td>9 号</td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+  </tr>
+  <tr>
+    <td>1</td><td>纯环己烷</td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+    <td><input type="text" placeholder="0.0000"></td>
+  </tr>
+</table>
+
+<!-- 表2: 沸点与气/液相折光率 -->
+<h2>三、表 2 — 各溶液沸点及气/液相折光率</h2>
+<p class="note">每个折光率测量 3 次，保留 4 位小数。纯乙醇和纯环己烷的气/液相折光率 = 表 1 工作曲线中对应值。</p>
+
+<table id="boiling_refractive">
+  <tr>
+    <th>环己烷<br>体积分数</th>
+    <th>沸点<br>(℃)</th>
+    <th colspan="3">气相折光率</th>
+    <th colspan="3">液相折光率</th>
+  </tr>
+  <tr>
+    <td>0<br>(纯乙醇)</td>
+    <td><input type="text" placeholder="00.00"></td>
+    <td colspan="3" style="color:#999;">同表1纯乙醇</td>
+    <td colspan="3" style="color:#999;">同表1纯乙醇</td>
+  </tr>
+  <tr>
+    <td>0.10</td>
+    <td><input type="text" placeholder="00.00"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+  </tr>
+  <tr>
+    <td>0.20</td>
+    <td><input type="text" placeholder="00.00"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+  </tr>
+  <tr>
+    <td>0.30</td>
+    <td><input type="text" placeholder="00.00"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+  </tr>
+  <tr>
+    <td>0.40</td>
+    <td><input type="text" placeholder="00.00"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+  </tr>
+  <tr>
+    <td>0.50</td>
+    <td><input type="text" placeholder="00.00"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+  </tr>
+  <tr>
+    <td>0.60</td>
+    <td><input type="text" placeholder="00.00"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+  </tr>
+  <tr>
+    <td>0.70</td>
+    <td><input type="text" placeholder="00.00"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+  </tr>
+  <tr>
+    <td>0.80</td>
+    <td><input type="text" placeholder="00.00"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+  </tr>
+  <tr>
+    <td>0.90</td>
+    <td><input type="text" placeholder="00.00"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₁" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₂" style="width:80%;"></td>
+    <td><input type="text" placeholder="n₃" style="width:80%;"></td>
+  </tr>
+  <tr>
+    <td>1<br>(纯环己烷)</td>
+    <td><input type="text" placeholder="00.00"></td>
+    <td colspan="3" style="color:#999;">同表1纯环己烷</td>
+    <td colspan="3" style="color:#999;">同表1纯环己烷</td>
+  </tr>
+</table>
+
+<p class="small">注：纯乙醇和纯环己烷的气/液相折光率与工作曲线（表1）中对应值相同，无需重复填写。</p>
+
+<!-- 按钮 -->
+<div class="btn-row">
+  <button class="btn-save" onclick="saveData()">保存已填数据</button>
+  <button class="btn-copy" onclick="copyAsText()">复制为文本</button>
+</div>
+
+<div id="saved_data" style="white-space:pre-wrap;background:#f5f5f5;border:1px solid #ccc;padding:12px;margin-top:15px;font-family:monospace;font-size:12px;display:none;"></div>
+
+<script>
+function saveData() {
+  const result = {};
+
+  // 基础参数
+  result['实验室温度'] = document.getElementById('lab_temp').value.trim();
+  result['大气压力'] = document.getElementById('atm_pressure').value.trim();
+
+  // 表1 工作曲线
+  const wcRows = document.querySelectorAll('#work_curve tr');
+  const wcData = [];
+  for (let i = 1; i < wcRows.length; i++) {
+    const cells = wcRows[i].querySelectorAll('td');
+    const inputs = wcRows[i].querySelectorAll('input');
+    const frac = cells[0].textContent.trim();
+    const sample = cells[1].textContent.trim();
+    const n1 = inputs[0] ? inputs[0].value.trim() : '';
+    const n2 = inputs[1] ? inputs[1].value.trim() : '';
+    const n3 = inputs[2] ? inputs[2].value.trim() : '';
+    wcData.push({ 体积分数: frac, 样品: sample, n1, n2, n3 });
+  }
+  result['工作曲线'] = wcData;
+
+  // 表2 沸点及气/液相折光率
+  const brRows = document.querySelectorAll('#boiling_refractive tr');
+  const brData = [];
+  for (let i = 1; i < brRows.length; i++) {
+    const cells = brRows[i].querySelectorAll('td');
+    const inputs = brRows[i].querySelectorAll('input');
+    const frac = cells[0].textContent.trim();
+    const bp = inputs.length > 0 && inputs[0] ? inputs[0].value.trim() : '';
+
+    let gas_n1 = '', gas_n2 = '', gas_n3 = '';
+    let liq_n1 = '', liq_n2 = '', liq_n3 = '';
+
+    if (inputs.length === 7) {
+      gas_n1 = inputs[1].value.trim();
+      gas_n2 = inputs[2].value.trim();
+      gas_n3 = inputs[3].value.trim();
+      liq_n1 = inputs[4].value.trim();
+      liq_n2 = inputs[5].value.trim();
+      liq_n3 = inputs[6].value.trim();
+    }
+    brData.push({ 体积分数: frac, 沸点: bp,
+      气相_n1: gas_n1, 气相_n2: gas_n2, 气相_n3: gas_n3,
+      液相_n1: liq_n1, 液相_n2: liq_n2, 液相_n3: liq_n3 });
+  }
+  result['沸点与折光率'] = brData;
+
+  const jsonStr = JSON.stringify(result, null, 2);
+  const div = document.getElementById('saved_data');
+  div.style.display = 'block';
+  div.textContent = jsonStr;
+
+  // 同时存到 localStorage
+  localStorage.setItem('lab6_data', jsonStr);
+  alert('数据已保存到本页底部（同时存入浏览器本地存储）。');
+}
+
+function copyAsText() {
+  const div = document.getElementById('saved_data');
+  if (!div.textContent) {
+    alert('请先点击"保存已填数据"再复制。');
+    return;
+  }
+  navigator.clipboard.writeText(div.textContent).then(() => {
+    alert('已复制到剪贴板，请粘贴发送给我。');
+  }).catch(() => {
+    alert('复制失败，请手动选中页面底部 JSON 数据复制。');
+  });
+}
+
+// 页面加载时恢复之前保存的数据
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('lab6_data');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      document.getElementById('lab_temp').value = data['实验室温度'] || '';
+      document.getElementById('atm_pressure').value = data['大气压力'] || '';
+
+      if (data['工作曲线']) {
+        const wcRows = document.querySelectorAll('#work_curve tr');
+        for (let i = 0; i < data['工作曲线'].length && i + 1 < wcRows.length; i++) {
+          const inputs = wcRows[i + 1].querySelectorAll('input');
+          if (inputs.length >= 3) {
+            inputs[0].value = data['工作曲线'][i].n1;
+            inputs[1].value = data['工作曲线'][i].n2;
+            inputs[2].value = data['工作曲线'][i].n3;
+          }
+        }
+      }
+
+      if (data['沸点与折光率']) {
+        const brRows = document.querySelectorAll('#boiling_refractive tr');
+        for (let i = 0; i < data['沸点与折光率'].length && i + 1 < brRows.length; i++) {
+          const inputs = brRows[i + 1].querySelectorAll('input');
+          if (inputs.length > 0) {
+            inputs[0].value = data['沸点与折光率'][i].沸点;
+            if (inputs.length === 7) {
+              inputs[1].value = data['沸点与折光率'][i].气相_n1;
+              inputs[2].value = data['沸点与折光率'][i].气相_n2;
+              inputs[3].value = data['沸点与折光率'][i].气相_n3;
+              inputs[4].value = data['沸点与折光率'][i].液相_n1;
+              inputs[5].value = data['沸点与折光率'][i].液相_n2;
+              inputs[6].value = data['沸点与折光率'][i].液相_n3;
+            }
+          }
+        }
+      }
+    } catch(e) {}
+  }
+});
+</script>
+
+</body>
+</html>

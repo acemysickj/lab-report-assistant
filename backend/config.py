@@ -34,3 +34,6 @@ CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(","
 
 # Generation limits
 MAX_REVIEW_ROUNDS = 2
+# DOCX export
+PANDOC_PATH = os.environ.get("PANDOC_PATH", "pandoc")
+REFERENCE_DOCX = os.environ.get("REFERENCE_DOCX", "")

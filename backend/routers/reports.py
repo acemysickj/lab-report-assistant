@@ -187,3 +187,61 @@ async def assemble_postlab(request: dict):
     filepath = save_report_html(0, exp_title, report_id, html, "完整")
 
     return {"report_id": report_id, "html_path": str(filepath), "html": html}
+# --- DOCX Export ---
+
+@router.post("/export-docx")
+async def export_docx(request: dict):
+    """Convert assembled HTML report to DOCX and return as downloadable file.
+
+    Request body: { html: str }
+    Returns: DOCX binary stream.
+    """
+    from fastapi.responses import Response
+    from services.docx_service import convert_html_to_docx, is_pandoc_available
+
+    if not is_pandoc_available():
+        raise HTTPException(
+            status_code=501,
+            detail="pandoc 未安装。请安装 pandoc 后重试。",
+        )
+
+    html = request.get("html", "")
+    if not html:
+        raise HTTPException(status_code=400, detail="缺少 html 参数")
+
+    try:
+        docx_bytes = convert_html_to_docx(html)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return Response(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": "attachment; filename=report.docx"},
+    )
+
+
+@router.post("/export-docx-v2")
+async def export_docx_v2(request: dict):
+    """Build DOCX from HTML report via python-docx + addFormula2docx renderer.
+
+    Request body: { html: str }
+    Returns: DOCX binary stream.
+    """
+    from fastapi.responses import Response
+    from services.docx_v2 import convert_html_to_docx_v2
+
+    html = request.get("html", "")
+    if not html:
+        raise HTTPException(status_code=400, detail="缺少 html 参数")
+
+    try:
+        docx_bytes = convert_html_to_docx_v2(html)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return Response(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": "attachment; filename=report.docx"},
+    )

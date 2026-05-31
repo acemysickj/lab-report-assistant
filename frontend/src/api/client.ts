@@ -30,6 +30,19 @@ export const assemblePostlab = (body: {
 }) =>
   request<{ report_id: string; html_path: string; html: string }>('/reports/postlab/assemble', { method: 'POST', body: JSON.stringify(body) });
 
+// --- Course Management ---
+export const deleteCourse = (courseId: string) =>
+  request<{ status: string }>(`/courses/${encodeURIComponent(courseId)}`, { method: 'DELETE' });
+
+export const reparseCourse = (courseId: string, description: string) => {
+  const fd = new FormData();
+  fd.append('description', description);
+  return request<{ status: string; message: string; experiments?: { id: string; title: string }[] }>(
+    `/courses/${encodeURIComponent(courseId)}/reparse`,
+    { method: 'POST', body: fd },
+  );
+};
+
 // --- Files ---
 export const listReports = () =>
   request<{ reports: { id: string; experiment_dir: string; html_path: string; created_at: string; size: number }[] }>('/files/reports');

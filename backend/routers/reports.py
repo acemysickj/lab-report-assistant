@@ -187,8 +187,6 @@ async def assemble_postlab(request: dict):
     filepath = save_report_html(0, exp_title, report_id, html, "完整")
 
     return {"report_id": report_id, "html_path": str(filepath), "html": html}
-
-
 # --- DOCX Export ---
 
 @router.post("/export-docx")
@@ -225,16 +223,13 @@ async def export_docx(request: dict):
 
 @router.post("/export-docx-v2")
 async def export_docx_v2(request: dict):
-    """Build DOCX from HTML report via hybrid pipeline.
-
-    pandoc preserves structure (tables, headings, styles);
-    addFormula2docx provides clean OMML formulas (no extra spaces).
+    """Build DOCX from HTML report via python-docx + addFormula2docx renderer.
 
     Request body: { html: str }
     Returns: DOCX binary stream.
     """
     from fastapi.responses import Response
-    from services.docx_v2.pipeline import convert_html_to_docx_v2
+    from services.docx_v2 import convert_html_to_docx_v2
 
     html = request.get("html", "")
     if not html:

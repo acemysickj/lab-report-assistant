@@ -174,7 +174,7 @@ class _BaseRenderer(HTMLParser):
     @staticmethod
     def _is_html_formula_block(tag: str, attrs: dict) -> bool:
         classes = (attrs.get('class', '') or '').split()
-        return tag == 'div' and 'formula' in classes and 'data-html-formula' in attrs
+        return tag in ('div', 'p') and 'formula' in classes and 'data-html-formula' in attrs
 
     def _is_inside_formula_capture(self) -> bool:
         return self._formula_capture_tag is not None
@@ -199,7 +199,8 @@ class _BaseRenderer(HTMLParser):
 
         # ── html-formula-capture guard ──────────────────────────
         if self._is_inside_html_formula_capture():
-            if tag == 'div' and 'formula' in (current_attrs.get('class', '') or '').split():
+            classes = (current_attrs.get('class', '') or '').split()
+            if tag in ('div', 'p') and 'formula' in classes:
                 self._html_formula_depth += 1
             return
 
@@ -299,12 +300,12 @@ class _BaseRenderer(HTMLParser):
 
         # ── html-formula-capture guard ───────────────────────────
         if self._is_inside_html_formula_capture():
-            if tag == 'div' and self._html_formula_depth == 1:
+            if tag in ('div', 'p') and self._html_formula_depth == 1:
                 self._html_formula_depth -= 1
                 self._finish_html_formula_capture()
                 self.tags.pop(tag, None)
                 return
-            if tag == 'div':
+            if tag in ('div', 'p'):
                 self._html_formula_depth -= 1
             return
 
@@ -477,14 +478,16 @@ class _BaseRenderer(HTMLParser):
     # ── pure-HTML formula numbering ──────────────────────────────────
 
     def _finish_html_formula_capture(self):
-        """Finish capturing a pure-HTML formula with eq-num and render as numbered table."""
+        """Finish capturing a pure-HTML formula and render as numbered table."""
         eq_num_text = self._html_formula_eq_num_text
         formula_html = self._formula_capture_html
+
+        if not eq_num_text:
+            eq_num_text = f'({self._next_equation_number()})'
 
         if formula_html:
             self._emit_html_numbered_equation(formula_html, eq_num_text)
         else:
-            # No HTML content — just show the number as fallback
             p = self.doc.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(f'[{eq_num_text}]')
@@ -779,28 +782,29 @@ class _BaseRenderer(HTMLParser):
         # Pre-process formula blocks: inject data-fml-id for fallback HTML lookup
         self._formula_fallbacks: dict[str, str] = {}
         _fml_counter = 0
-        for tag_name, cls_attr in [('div', 'formula'), ('span', 'math-inline')]:
+        for tag_name, cls_attr in [('div', 'formula'), ('p', 'formula'), ('span', 'math-inline')]:
             for el in soup.find_all(tag_name, class_=cls_attr):
                 if el.get('data-latex'):
                     fml_id = f'fml_{_fml_counter}'
                     _fml_counter += 1
                     el['data-fml-id'] = fml_id
-                    # Store inner HTML (children rendered as string) for fallback
                     inner = ''.join(str(c) for c in el.contents)
                     self._formula_fallbacks[fml_id] = inner
-                elif tag_name == 'div' and not el.get('data-latex'):
+                elif tag_name in ('div', 'p') and not el.get('data-latex'):
                     # Pure-HTML formula: check for eq-num child
                     eq_num_el = el.find('span', class_='eq-num')
                     if eq_num_el is not None:
                         eq_num_text = eq_num_el.get_text(strip=True) or ''
                         eq_num_el.decompose()  # remove eq-num from formula body
-                        el['data-html-formula'] = 'block'
-                        el['data-eq-num-text'] = eq_num_text
-                        fml_id = f'fml_{_fml_counter}'
-                        _fml_counter += 1
-                        el['data-fml-id'] = fml_id
-                        inner = ''.join(str(c) for c in el.contents)
-                        self._formula_fallbacks[fml_id] = inner
+                    else:
+                        eq_num_text = ''  # auto-number via counter
+                    el['data-html-formula'] = 'block'
+                    el['data-eq-num-text'] = eq_num_text
+                    fml_id = f'fml_{_fml_counter}'
+                    _fml_counter += 1
+                    el['data-fml-id'] = fml_id
+                    inner = ''.join(str(c) for c in el.contents)
+                    self._formula_fallbacks[fml_id] = inner
         self.feed(str(soup))
 
     def add_html_to_document(self, html: str, document):

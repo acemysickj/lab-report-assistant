@@ -140,6 +140,11 @@ class _BaseRenderer(HTMLParser):
 
         self._degraded_formulas: int = 0
 
+        # ── clean state: HTML formula capture (no data-latex, with eq-num) ──
+        self._html_formula_capture: bool = False
+        self._html_formula_eq_num_text: str = ''
+        self._html_formula_depth: int = 0
+
         # ── clean state: equation numbering ──
         self._equation_counter: int = 0
         self._equation_numbering_enabled: bool = True  # 固定显示；后续加开关
@@ -166,8 +171,16 @@ class _BaseRenderer(HTMLParser):
         classes = (attrs.get('class', '') or '').split()
         return tag == 'span' and 'math-inline' in classes and 'data-latex' in attrs
 
+    @staticmethod
+    def _is_html_formula_block(tag: str, attrs: dict) -> bool:
+        classes = (attrs.get('class', '') or '').split()
+        return tag == 'div' and 'formula' in classes and 'data-html-formula' in attrs
+
     def _is_inside_formula_capture(self) -> bool:
         return self._formula_capture_tag is not None
+
+    def _is_inside_html_formula_capture(self) -> bool:
+        return self._html_formula_capture
 
     # ── start-tag ──────────────────────────────────────────────────
 
@@ -182,6 +195,12 @@ class _BaseRenderer(HTMLParser):
         if self._is_inside_formula_capture():
             if tag == self._formula_capture_tag:
                 self._formula_capture_depth += 1
+            return
+
+        # ── html-formula-capture guard ──────────────────────────
+        if self._is_inside_html_formula_capture():
+            if tag == 'div' and 'formula' in (current_attrs.get('class', '') or '').split():
+                self._html_formula_depth += 1
             return
 
         # ── detect ignored tags ────────────────────────────────
@@ -207,6 +226,16 @@ class _BaseRenderer(HTMLParser):
             self._formula_capture_html = self._formula_fallbacks.get(fml_id, '')
             self._formula_capture_tag = tag
             self._formula_capture_depth = 1
+            self.tags[tag] = current_attrs
+            return
+
+        # ── detect pure-HTML formula blocks ──────────────────────
+        if self._is_html_formula_block(tag, current_attrs):
+            self._html_formula_capture = True
+            self._html_formula_eq_num_text = current_attrs.get('data-eq-num-text', '')
+            self._html_formula_depth = 1
+            fml_id = current_attrs.get('data-fml-id', '')
+            self._formula_capture_html = self._formula_fallbacks.get(fml_id, '')
             self.tags[tag] = current_attrs
             return
 
@@ -266,6 +295,17 @@ class _BaseRenderer(HTMLParser):
                     return
                 self._finish_formula_capture()
                 self.tags.pop(tag, None)
+            return
+
+        # ── html-formula-capture guard ───────────────────────────
+        if self._is_inside_html_formula_capture():
+            if tag == 'div' and self._html_formula_depth == 1:
+                self._html_formula_depth -= 1
+                self._finish_html_formula_capture()
+                self.tags.pop(tag, None)
+                return
+            if tag == 'div':
+                self._html_formula_depth -= 1
             return
 
         if tag in ('ol', 'ul') and self._list_stack:
@@ -416,6 +456,71 @@ class _BaseRenderer(HTMLParser):
         num_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         eq_num = self._next_equation_number()
         run = num_para.add_run(f"({eq_num})")
+        run.font.size = Pt(12)
+        _set_cjk(run)
+
+        # Set cell vertical alignment to center
+        for cell in table.rows[0].cells:
+            tcPr = cell._tc.get_or_add_tcPr()
+            vAlign = OxmlElement('w:vAlign')
+            vAlign.set(qn('w:val'), 'center')
+            tcPr.append(vAlign)
+
+        # Tiny gap after equation table
+        spacer = self.doc.add_paragraph('')
+        spacer.paragraph_format.space_before = Pt(2)
+        spacer.paragraph_format.space_after = Pt(4)
+        spacer.paragraph_format.line_spacing = 0.2
+
+        self.paragraph = None
+
+    # ── pure-HTML formula numbering ──────────────────────────────────
+
+    def _finish_html_formula_capture(self):
+        """Finish capturing a pure-HTML formula with eq-num and render as numbered table."""
+        eq_num_text = self._html_formula_eq_num_text
+        formula_html = self._formula_capture_html
+
+        if formula_html:
+            self._emit_html_numbered_equation(formula_html, eq_num_text)
+        else:
+            # No HTML content — just show the number as fallback
+            p = self.doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run(f'[{eq_num_text}]')
+            run.font.name = 'Courier'
+            self.paragraph = None
+
+        self._html_formula_capture = False
+        self._html_formula_eq_num_text = ''
+        self._html_formula_depth = 0
+        self._formula_capture_html = None
+
+    def _emit_html_numbered_equation(self, formula_html: str, eq_num_text: str):
+        """Create a borderless 3-column table with formula HTML centered and eq-num right-aligned."""
+        table = self.doc.add_table(rows=1, cols=3)
+        table.autofit = False
+
+        cell_spacer, cell_eq, cell_num = table.rows[0].cells
+        cell_spacer.width = Cm(0.8)
+        cell_eq.width = Cm(11.2)
+        cell_num.width = Cm(2.6)
+
+        self._remove_table_borders(table)
+
+        # Render formula HTML into center cell as a fresh renderer
+        child = _BaseRenderer()
+        child._base_path = self._base_path
+        child._init_state(document=cell_eq)
+        child._run(formula_html)
+        # Center-align all paragraphs in the cell
+        for para in cell_eq.paragraphs:
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        # Add eq-num text to right cell
+        num_para = cell_num.paragraphs[0]
+        num_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        run = num_para.add_run(eq_num_text)
         run.font.size = Pt(12)
         _set_cjk(run)
 
@@ -683,6 +788,19 @@ class _BaseRenderer(HTMLParser):
                     # Store inner HTML (children rendered as string) for fallback
                     inner = ''.join(str(c) for c in el.contents)
                     self._formula_fallbacks[fml_id] = inner
+                elif tag_name == 'div' and not el.get('data-latex'):
+                    # Pure-HTML formula: check for eq-num child
+                    eq_num_el = el.find('span', class_='eq-num')
+                    if eq_num_el is not None:
+                        eq_num_text = eq_num_el.get_text(strip=True) or ''
+                        eq_num_el.decompose()  # remove eq-num from formula body
+                        el['data-html-formula'] = 'block'
+                        el['data-eq-num-text'] = eq_num_text
+                        fml_id = f'fml_{_fml_counter}'
+                        _fml_counter += 1
+                        el['data-fml-id'] = fml_id
+                        inner = ''.join(str(c) for c in el.contents)
+                        self._formula_fallbacks[fml_id] = inner
         self.feed(str(soup))
 
     def add_html_to_document(self, html: str, document):

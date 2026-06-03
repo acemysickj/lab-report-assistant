@@ -304,6 +304,13 @@ class _BaseRenderer(HTMLParser):
 
         self._render_text_with_formulas(data)
 
+    _XML_CONTROL_RE = re.compile('[\x00-\x08\x0b\x0c\x0e-\x1f]')
+
+    @staticmethod
+    def _sanitize_xml_text(text: str) -> str:
+        """Strip XML-invalid control characters from a string."""
+        return _BaseRenderer._XML_CONTROL_RE.sub('', text)
+
     # ── formula capture lifecycle ──────────────────────────────────
 
     def _finish_formula_capture(self):
@@ -332,7 +339,8 @@ class _BaseRenderer(HTMLParser):
                 if display == 'block':
                     self.paragraph = self.doc.add_paragraph()
                     self.paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                run = (self.paragraph or self.doc.add_paragraph()).add_run(f'[{latex}]')
+                safe_latex = self._sanitize_xml_text(latex)
+                run = (self.paragraph or self.doc.add_paragraph()).add_run(f'[{safe_latex}]')
                 run.font.name = 'Courier'
                 self.paragraph = None if display == 'block' else self.paragraph
 
@@ -452,7 +460,8 @@ class _BaseRenderer(HTMLParser):
             self._degraded_formulas += 1
             p = self.doc.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = p.add_run(f'[{latex}]')
+            safe_latex = self._sanitize_xml_text(latex)
+            run = p.add_run(f'[{safe_latex}]')
             run.font.name = 'Courier'
         self.paragraph = None  # don't reuse — let next block element create its own
 
@@ -465,7 +474,8 @@ class _BaseRenderer(HTMLParser):
             self.paragraph._element.append(etree.fromstring(etree.tostring(omml)))
         else:
             self._degraded_formulas += 1
-            run = (self.paragraph or self.doc.add_paragraph()).add_run(f'[{latex}]')
+            safe_latex = self._sanitize_xml_text(latex)
+            run = (self.paragraph or self.doc.add_paragraph()).add_run(f'[{safe_latex}]')
             run.font.name = 'Courier'
 
     # ── run helpers ────────────────────────────────────────────────

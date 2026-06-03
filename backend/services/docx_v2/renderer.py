@@ -140,6 +140,10 @@ class _BaseRenderer(HTMLParser):
 
         self._degraded_formulas: int = 0
 
+        # ── clean state: equation numbering ──
+        self._equation_counter: int = 0
+        self._equation_numbering_enabled: bool = True  # 固定显示；后续加开关
+
         if document is not None:
             self.doc = document
         else:
@@ -340,14 +344,87 @@ class _BaseRenderer(HTMLParser):
     def _emit_omml_formula(self, omml, display: str):
         """Insert an already-converted OMML element into the document."""
         if display == 'block':
-            p = self.doc.add_paragraph()
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p._element.append(etree.fromstring(etree.tostring(omml)))
-            self.paragraph = None
+            if self._equation_numbering_enabled:
+                self._emit_numbered_equation(omml)
+            else:
+                p = self.doc.add_paragraph()
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p._element.append(etree.fromstring(etree.tostring(omml)))
+                self.paragraph = None
         else:
             if self.paragraph is None:
                 self.paragraph = self.doc.add_paragraph()
             self.paragraph._element.append(etree.fromstring(etree.tostring(omml)))
+
+    # ── equation numbering helpers ───────────────────────────────────
+
+    def _next_equation_number(self) -> int:
+        """Return the next sequential equation number."""
+        self._equation_counter += 1
+        return self._equation_counter
+
+    @staticmethod
+    def _remove_table_borders(table):
+        """Remove all borders from a table (make it invisible)."""
+        tbl = table._tbl
+        tblPr = tbl.tblPr
+        if tblPr is None:
+            tblPr = OxmlElement('w:tblPr')
+            tbl.insert(0, tblPr)
+
+        for old in tblPr.findall(qn('w:tblBorders')):
+            tblPr.remove(old)
+
+        borders = OxmlElement('w:tblBorders')
+        for border_name in ('top', 'left', 'bottom', 'right', 'insideH', 'insideV'):
+            border = OxmlElement(f'w:{border_name}')
+            border.set(qn('w:val'), 'none')
+            border.set(qn('w:sz'), '0')
+            border.set(qn('w:space'), '0')
+            border.set(qn('w:color'), 'auto')
+            borders.append(border)
+        tblPr.append(borders)
+
+    def _emit_numbered_equation(self, omml):
+        """Create a borderless 3-column table: spacer | centered-equation | (number)."""
+        table = self.doc.add_table(rows=1, cols=3)
+        table.autofit = False
+
+        cell_spacer, cell_eq, cell_num = table.rows[0].cells
+        cell_spacer.width = Cm(0.8)
+        cell_eq.width = Cm(11.2)
+        cell_num.width = Cm(2.6)
+
+        # Remove all borders
+        self._remove_table_borders(table)
+
+        # Inject OMML into center cell's first paragraph
+        eq_para = cell_eq.paragraphs[0]
+        eq_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        eq_para._element.append(etree.fromstring(etree.tostring(omml)))
+
+        # Add equation number to right cell
+        num_para = cell_num.paragraphs[0]
+        num_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        eq_num = self._next_equation_number()
+        run = num_para.add_run(f"({eq_num})")
+        run.font.size = Pt(12)
+        _set_cjk(run)
+
+        # Set cell vertical alignment to center
+        for cell in table.rows[0].cells:
+            tcPr = cell._tc.get_or_add_tcPr()
+            vAlign = OxmlElement('w:vAlign')
+            vAlign.set(qn('w:val'), 'center')
+            tcPr.append(vAlign)
+
+        # Tiny gap after equation table
+        spacer = self.doc.add_paragraph('')
+        spacer.paragraph_format.space_before = Pt(2)
+        spacer.paragraph_format.space_after = Pt(4)
+        spacer.paragraph_format.line_spacing = 0.2
+
+        self.paragraph = None
 
     # ── bare-LaTeX text splitting ──────────────────────────────────
 

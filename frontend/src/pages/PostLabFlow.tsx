@@ -230,6 +230,35 @@ export default function PostLabFlow() {
 
   useEffect(() => { if (store.phase === 'review_export') doAssemble(); }, [store.phase]); // eslint-disable-line
 
+  // ── DOCX download ──
+  const doDownloadDocx = async () => {
+    message.loading({ content: '正在生成 DOCX...', key: 'docx', duration: 0 });
+    try {
+      const blocks: any[] = [];
+      for (const s of POSTLAB_SECTIONS) {
+        if (store.sectionContents[s.key]) {
+          blocks.push({ type: 'section_heading', text: s.label });
+          blocks.push(...store.sectionContents[s.key]);
+        }
+      }
+      const res = await fetch('/api/reports/export-docx', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocks }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = '后续报告.docx'; a.click();
+      URL.revokeObjectURL(url);
+      message.destroy('docx');
+      message.success('DOCX 下载已开始');
+    } catch (err) {
+      message.destroy('docx');
+      message.error(`DOCX 生成失败：${(err as Error).message}`);
+    }
+  };
+
   // ── Done ──
   if (store.phase === 'done') {
     const reportId = sessionStorage.getItem('lastReportId') || '';
@@ -237,6 +266,7 @@ export default function PostLabFlow() {
       <Result status="success" title="完整报告生成完成！" subTitle="报告已保存，可以预览或下载"
         extra={[
           <Button key="preview" type="primary" size="large" onClick={() => navigate(`/preview/${reportId}`)} style={{ borderRadius: 10, fontWeight: 600 }}>预览报告</Button>,
+          <Button key="docx" size="large" onClick={doDownloadDocx} style={{ borderRadius: 10 }}>📄 下载 DOCX</Button>,
           <Button key="history" size="large" onClick={() => navigate('/history')} style={{ borderRadius: 10 }}>历史报告</Button>,
           <Button key="home" size="large" onClick={() => navigate('/')} style={{ borderRadius: 10 }}>返回首页</Button>,
         ]}

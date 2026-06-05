@@ -68,7 +68,6 @@ export default function PreLabFlow() {
   const isStreaming = sse.streaming || reviseSse.streaming;
   useEffect(() => {
     if (store.phase === 'generating' && !isStreaming) {
-      console.log('[PreLabFlow] SSE stopped. sse.content length:', sse.content.length, 'sse.error:', sse.error?.slice(0, 100), 'reviseSse.content:', !!reviseSse.content);
       if (reviseSse.content) {
         store.finishRevise(reviseSse.content);
       } else if (sse.content) {
@@ -83,18 +82,15 @@ export default function PreLabFlow() {
   // ── Display HTML ──
   const contentToShow = store.revisedContent || store.generatedContent;
   const displayHtml = useMemo(() => {
-    console.log('[displayHtml] phase:', store.phase, 'contentToShow length:', contentToShow.length, 'isStreaming:', isStreaming);
     if (store.sections[currentSection]?.length) {
-      console.log('[displayHtml] using saved sections, blocks count:', store.sections[currentSection].length);
       return blocksToHtml(store.sections[currentSection]);
     }
     if (contentToShow && !isStreaming) {
       try {
         const parsed = JSON.parse(contentToShow.trim());
         const blocks = Array.isArray(parsed) ? parsed : (parsed.blocks || []);
-        console.log('[displayHtml] parsed blocks count:', blocks.length, 'first block:', blocks[0]?.type);
         if (blocks.length) return blocksToHtml(blocks);
-      } catch (e) { console.log('[displayHtml] JSON parse error:', e); }
+      } catch { /* ignore */ }
     }
     return '';
   }, [currentSection, store.sections, contentToShow, isStreaming, store.phase]);
@@ -119,6 +115,37 @@ export default function PreLabFlow() {
     }
   };
 
+  // ── DOCX download ──
+  const doDownloadDocx = async () => {
+    message.loading({ content: '正在生成 DOCX...', key: 'docx', duration: 0 });
+    try {
+      const sections = store.sections;
+      const blocks: any[] = [];
+      for (const s of PRELAB_SECTIONS) {
+        if (sections[s]) {
+          blocks.push({ type: 'section_heading' as const, text: SECTION_LABELS[s] });
+          blocks.push(...sections[s]);
+        }
+      }
+      const res = await fetch('/api/reports/export-docx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocks }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = '预习报告.docx'; a.click();
+      URL.revokeObjectURL(url);
+      message.destroy('docx');
+      message.success('DOCX 下载已开始');
+    } catch (err) {
+      message.destroy('docx');
+      message.error(`DOCX 生成失败：${(err as Error).message}`);
+    }
+  };
+
   // Trigger assemble when phase transitions to assembling
   useEffect(() => {
     if (store.phase === 'assembling') { doAssemble(); }
@@ -132,6 +159,7 @@ export default function PreLabFlow() {
         icon={<div style={{ width: 80, height: 80, borderRadius: 20, background: 'linear-gradient(135deg, #eef5ef 0%, #dce9df 100%)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircleOutlined style={{ color: '#3d7a4f', fontSize: 40 }} /></div>}
         extra={[
           <Button key="preview" type="primary" size="large" onClick={() => navigate(`/preview/${reportId}`)} style={{ borderRadius: 10, fontWeight: 600 }}>预览报告</Button>,
+          <Button key="docx" size="large" onClick={doDownloadDocx} style={{ borderRadius: 10 }}>📄 下载 DOCX</Button>,
           <Button key="home" size="large" onClick={() => navigate('/')} style={{ borderRadius: 10 }}>返回首页</Button>,
         ]}
       />

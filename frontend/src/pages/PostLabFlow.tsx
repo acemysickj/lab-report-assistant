@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, Component, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Component, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Button, Space, Input, message, Result, Table, InputNumber,
@@ -23,6 +23,7 @@ import { useSSE } from '../hooks/useSSE';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { useUnsavedWarning } from '../hooks/useUnsavedWarning';
 import type { DataTableSchema, ReviewResult } from '../types';
+import { blocksToHtml, type ReportBlock } from '../utils/blocksToHtml';
 
 const POSTLAB_STEPS = [
   { title: '数据录入', description: '填写实验数据', icon: <DatabaseOutlined /> },
@@ -319,15 +320,31 @@ export default function PostLabFlow() {
   const [figureDir, setFigureDir] = useState('');
   const [figuresLoading, setFiguresLoading] = useState(false);
   const [figuresError, setFiguresError] = useState('');
-  const [sectionContents, setSectionContents] = useState<Record<string, string>>({});
+  const [sectionContents, setSectionContents] = useState<Record<string, ReportBlock[]>>({});
   const [activePostSection, setActivePostSection] = useState<string>('records');
   const [feedback, setFeedback] = useState('');
+
   const [reviewResult, setReviewResult] = useState<ReviewResult | null>(null);
   const [complete, setComplete] = useState(false);
 
   const sse = useSSE();
   const reviseSse = useSSE();
   const studentInfo = useRef(JSON.parse(sessionStorage.getItem('studentInfo') || '{}')).current;
+
+  const displayHtml = useMemo(() => {
+    if (sectionContents[activePostSection]?.length) {
+      return blocksToHtml(sectionContents[activePostSection]);
+    }
+    if (sse.content && !sse.streaming) {
+      try {
+        const trimmed = sse.content.trim();
+        const parsed = JSON.parse(trimmed);
+        const blocks: ReportBlock[] = Array.isArray(parsed) ? parsed : (parsed.blocks || []);
+        if (blocks.length) return blocksToHtml(blocks);
+      } catch { /* ignore */ }
+    }
+    return '';
+  }, [activePostSection, sectionContents, sse.content, sse.streaming]);
 
   // ---- Auto-save & restore ----
   const autoSave = useAutoSave({ key: `postlab_${cId}_${eId}` });
@@ -383,7 +400,7 @@ export default function PostLabFlow() {
       setTemperature(saved.data.temperature as number | undefined);
       setPressure(saved.data.pressure as number | undefined);
       setAnalysisRes((saved.data.analysisRes as Record<string, unknown>) || {});
-      setSectionContents((saved.data.sectionContents as Record<string, string>) || {});
+      setSectionContents((saved.data.sectionContents as Record<string, ReportBlock[]>) || {});
       setActivePostSection((saved.data.activePostSection as string) || 'records');
       message.success('已恢复上次进度');
     }
@@ -433,12 +450,26 @@ export default function PostLabFlow() {
   }, [cId, eId, activePostSection, sse.content, feedback, reviseSse]);
 
   const handleSaveCurrentSection = useCallback(() => {
-    const content = reviseSse.content || sse.content;
-    if (!content) { message.warning('请先生成内容'); return; }
-    setSectionContents((prev) => ({ ...prev, [activePostSection]: content }));
+    const raw = reviseSse.content || sse.content;
+    if (!raw) { message.warning('请先生成内容'); return; }
+    let blocks: ReportBlock[];
+    try {
+      const trimmed = raw.trim();
+      const parsed = JSON.parse(trimmed);
+      blocks = Array.isArray(parsed) ? parsed : (parsed.blocks || []);
+    } catch {
+      const match = raw.match(/\[.*\]/s);
+      if (match) {
+        try { blocks = JSON.parse(match[0]); } catch { blocks = []; }
+      } else {
+        blocks = [];
+      }
+    }
+    if (!blocks.length) { message.warning('未能解析生成内容'); return; }
+    setSectionContents((prev) => ({ ...prev, [activePostSection]: blocks }));
     message.success(`「${POSTLAB_SECTIONS.find(s => s.key === activePostSection)?.label}」已保存`);
     sse.reset(); reviseSse.reset();
-    const next = { ...sectionContents, [activePostSection]: content };
+    const next = { ...sectionContents, [activePostSection]: blocks };
     if (POSTLAB_SECTIONS.every((s) => next[s.key])) setStep(4);
   }, [activePostSection, sectionContents, sse, reviseSse]);
 
@@ -456,11 +487,11 @@ export default function PostLabFlow() {
     try {
       const result = await apiAssemblePostlab({
         course_id: cId, experiment_id: eId, prelab_sections: {},
-        records: sectionContents.records || '',
-        data_analysis: sectionContents.records
+        records: (sectionContents.records || []) as any,
+        data_analysis: sectionContents.records?.length
           ? `<p>数据分析结果：</p><pre>${JSON.stringify(analysisRes, null, 2)}</pre>` : '',
-        discussion: sectionContents.discussion || '',
-        questions: sectionContents.questions || '',
+        discussion: (sectionContents.discussion || []) as any,
+        questions: (sectionContents.questions || []) as any,
         student_info: studentInfo,
       });
       message.destroy('assemble');
@@ -713,7 +744,7 @@ export default function PostLabFlow() {
                   boxShadow: '0 1px 4px rgba(44,36,22,0.04)',
                 }}>
                   <MathPreview
-                    html={reviseSse.content || sse.content}
+                    html={displayHtml}
                     loading={sse.streaming || reviseSse.streaming}
                     status={sse.status || reviseSse.status}
                     height="360px"
@@ -885,7 +916,7 @@ export default function PostLabFlow() {
               >
                 {sectionContents[s.key] ? (
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {sectionContents[s.key].replace(/<[^>]*>/g, '').slice(0, 200)}...
+                    {blocksToHtml(sectionContents[s.key]).replace(/<[^>]*>/g, '').slice(0, 200)}...
                   </Typography.Text>
                 ) : (
                   <Tag color="warning" style={{ borderRadius: 6 }}>未生成</Tag>

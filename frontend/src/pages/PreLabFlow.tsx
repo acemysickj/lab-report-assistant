@@ -68,6 +68,7 @@ export default function PreLabFlow() {
   const isStreaming = sse.streaming || reviseSse.streaming;
   useEffect(() => {
     if (store.phase === 'generating' && !isStreaming) {
+      console.log('[PreLabFlow] SSE stopped. sse.content length:', sse.content.length, 'sse.error:', sse.error?.slice(0, 100), 'reviseSse.content:', !!reviseSse.content);
       if (reviseSse.content) {
         store.finishRevise(reviseSse.content);
       } else if (sse.content) {

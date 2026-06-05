@@ -60,11 +60,15 @@ export const usePrelabStore = create<PrelabState>()(
       acceptSection: () => {
         const { generatedContent, revisedContent, currentStep, sections } = get();
         const raw = revisedContent || generatedContent;
+        console.log('[prelabStore] acceptSection called. raw length:', raw.length, 'raw[:200]:', raw.slice(0, 200));
         let blocks: ReportBlock[] = [];
         try {
           const parsed = JSON.parse(raw.trim());
           blocks = Array.isArray(parsed) ? parsed : (parsed.blocks || []);
-        } catch { /* ignore */ }
+          console.log('[prelabStore] parsed, blocks count:', blocks.length);
+        } catch (e) {
+          console.log('[prelabStore] JSON parse failed:', e);
+        }
         if (!blocks.length) { set({ error: '未能解析生成内容，请重新生成' }); return; }
 
         const section = PRELAB_SECTIONS[currentStep];

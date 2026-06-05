@@ -62,11 +62,15 @@ async def generate_with_review(
 
     content = _strip_markdown_wrappers(content)
 
+    # Parse blocks JSON from LLM output
+    blocks = _parse_blocks_json(content)
+
     # --- Step 2: Review loop ---
     for round_num in range(1, MAX_REVIEW_ROUNDS + 1):
         yield {"type": "status", "message": f"审查 Agent 第 {round_num} 轮审查中..."}
 
-        review = await _review_section(course_id, experiment_id, section, content, round_num)
+        readable = _blocks_to_review_text(blocks)
+        review = await _review_section(course_id, experiment_id, section, readable, round_num)
 
         if review["passed"]:
             yield {"type": "status", "message": "审查通过 ✓"}
@@ -74,14 +78,17 @@ async def generate_with_review(
 
         if round_num < MAX_REVIEW_ROUNDS:
             yield {"type": "status", "message": f"审查未通过，修改 Agent 正在修改..."}
-            content = await _revise_content(course_id, experiment_id, section, content, review["feedback"])
+            revised_raw = await _revise_content(course_id, experiment_id, section, readable, review["feedback"])
+            blocks = _parse_blocks_json(revised_raw)
         else:
             yield {"type": "status", "message": "⚠️ 2轮审查后仍有改进空间，已提交最佳版本"}
 
-    # --- Step 3: Stream final content ---
+    # --- Step 3: Stream final blocks as JSON ---
+    result_json = json.dumps(blocks, ensure_ascii=False)
     chunk_size = 200
-    for i in range(0, len(content), chunk_size):
-        yield {"type": "chunk", "content": content[i:i + chunk_size]}
+    result_str = result_json
+    for i in range(0, len(result_str), chunk_size):
+        yield {"type": "chunk", "content": result_str[i:i + chunk_size]}
 
     yield {"type": "done"}
 
@@ -158,156 +165,158 @@ def _strip_markdown_wrappers(text: str) -> str:
     return text.strip()
 
 
+def _parse_blocks_json(raw: str) -> list[dict]:
+    """Parse LLM output as blocks JSON array.  Retries with cleanup.
+
+    Returns a list of block dicts.  On total failure, wraps raw text
+    as a single body block (degraded mode).
+    """
+    import json as _json
+    import re as _re
+
+    raw = raw.strip()
+
+    # Strip markdown code fences if present
+    if raw.startswith("```"):
+        lines = raw.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        raw = "\n".join(lines).strip()
+
+    try:
+        blocks = _json.loads(raw)
+        if isinstance(blocks, list):
+            return blocks
+    except (_json.JSONDecodeError, ValueError):
+        pass
+
+    # Last resort: try to find JSON array in text
+    match = _re.search(r'\[.*\]', raw, _re.DOTALL)
+    if match:
+        try:
+            return _json.loads(match.group(0))
+        except (_json.JSONDecodeError, ValueError):
+            pass
+
+    # Return as single body block (degraded mode)
+    return [{"type": "body", "text": raw}]
+
+
+def _blocks_to_review_text(blocks: list[dict]) -> str:
+    """Convert blocks to a readable text representation for the review agent."""
+    lines = []
+    for b in blocks:
+        btype = b.get('type', '')
+        if btype in ('section_heading', 'sub_heading'):
+            lines.append('')
+            lines.append(f'[{btype}] {b.get("text", "")}')
+            lines.append('')
+        elif btype == 'body':
+            lines.append(b.get('text', ''))
+        elif btype == 'display_formula':
+            lines.append(f'[公式] {b.get("latex", "")}')
+        elif btype == 'three_line_table':
+            caption = b.get('caption', '')
+            if caption:
+                lines.append(f'[表格标题] {caption}')
+            lines.append(f'[表头] {" | ".join(b.get("headers", []))}')
+            for row in b.get("rows", []):
+                lines.append(f'[行] {" | ".join(str(c) for c in row)}')
+        elif btype == 'image':
+            lines.append(f'[图片] path={b.get("path", "")} alt={b.get("alt", "")} caption={b.get("caption", "")}')
+    return "\n".join(lines)
+
+
 def assemble_prelab_html(
     course_id: str,
     experiment_id: str,
-    sections: dict[str, str],
-    student_info: StudentInfo,
+    sections: dict,
+    student_info,
 ) -> str:
-    """Assemble pre-lab sections into a complete HTML document."""
-    exps = get_experiments(course_id)
-    exp_title = next((e['title'] for e in exps if e['id'] == experiment_id), experiment_id)
-    format_spec = load_format_spec(course_id)
+    """Build pre-lab HTML from section blocks (or legacy HTML strings).
 
-    section_titles = {
-        "purpose": "一、实验目的",
-        "principle": "二、实验原理",
-        "equipment": "三、仪器与试剂",
-        "procedure": "四、实验步骤",
-    }
+    New path: sections dict values are lists of block dicts.
+    Legacy path: sections dict values are HTML strings (auto-wrapped as body blocks).
+    """
+    from services.block_renderer import blocks_to_html
 
-    parts = []
-    for key in section_titles:
-        if key in sections:
-            parts.append(sections[key])
+    blocks_sections = {}
+    for key, val in sections.items():
+        if isinstance(val, list):
+            blocks_sections[key] = val
+        elif isinstance(val, str) and val.strip():
+            # Legacy HTML string — parse to blocks if possible, else wrap
+            parsed = _parse_blocks_json(val)
+            blocks_sections[key] = parsed if parsed else [{"type": "body", "text": val}]
+        else:
+            blocks_sections[key] = []
 
-    body = "\n".join(parts)
+    blocks = assemble_prelab_blocks(course_id, experiment_id, blocks_sections)
+    return blocks_to_html(blocks, include_mathjax=True)
 
-    html = f"""<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{exp_title} - 预习报告</title>
-<style>
-body {{
-    font-family: "宋体", "SimSun", "Times New Roman", serif;
-    font-size: 12pt;
-    line-height: 1.5;
-    max-width: 210mm;
-    margin: 0 auto;
-    padding: 20px;
-    color: #000;
-}}
-/* 三线表规范 — 确保预览与导出完全一致 */
-table {{
-    border-collapse: collapse;
-    margin: 10px auto;
-    width: 100%;
-    border-left: none;
-    border-right: none;
-    border-top: none;
-    border-bottom: none;
-}}
-thead {{ border-top: 1.5px solid #000; }}
-thead tr {{ border-bottom: 0.75px solid #000; }}
-tbody tr:last-child {{ border-bottom: 1.5px solid #000; }}
-th, td {{
-    padding: 4px 8px;
-    font-size: 10.5pt;
-    border-left: none;
-    border-right: none;
-    text-align: center;
-}}
-</style>
-<script>
-MathJax = {{ tex: {{ inlineMath: [['\\\\(', '\\\\)']], displayMath: [['$$', '$$']], tags: 'ams' }} }};
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
-</head>
-<body>
-{body}
-</body>
-</html>"""
 
-    return html
+def assemble_prelab_blocks(
+    course_id: str,
+    experiment_id: str,
+    sections: dict[str, list[dict]],
+) -> list[dict]:
+    """Merge pre-lab section blocks into one ordered list."""
+    section_order = ["purpose", "principle", "equipment", "procedure"]
+    all_blocks = []
+    for key in section_order:
+        if key in sections and sections[key]:
+            all_blocks.extend(sections[key])
+    return all_blocks
 
 
 def assemble_postlab_html(
+    course_id, experiment_id,
+    prelab_sections, records, data_analysis,
+    discussion, questions, student_info, figures_html="",
+) -> str:
+    """Build post-lab HTML from section blocks (or legacy HTML strings)."""
+    from services.block_renderer import blocks_to_html
+
+    def _to_blocks(val):
+        if isinstance(val, list):
+            return val
+        if isinstance(val, str) and val.strip():
+            parsed = _parse_blocks_json(val)
+            return parsed if parsed else [{"type": "body", "text": val}]
+        return []
+
+    blocks = assemble_postlab_blocks(
+        course_id, experiment_id,
+        {k: _to_blocks(v) for k, v in (prelab_sections or {}).items()},
+        _to_blocks(records),
+        _to_blocks(data_analysis),
+        _to_blocks(discussion),
+        _to_blocks(questions),
+        _to_blocks(figures_html),
+    )
+    return blocks_to_html(blocks, include_mathjax=True)
+
+
+def assemble_postlab_blocks(
     course_id: str,
     experiment_id: str,
-    prelab_sections: dict[str, str],
-    records: str,
-    data_analysis: str,
-    discussion: str,
-    questions: str,
-    student_info: StudentInfo,
-    figures_html: str = "",
-) -> str:
-    """Assemble complete post-lab report HTML."""
-    exps = get_experiments(course_id)
-    exp_title = next((e['title'] for e in exps if e['id'] == experiment_id), experiment_id)
-
-    parts = []
+    prelab_sections: dict[str, list[dict]],
+    records: list[dict],
+    data_analysis: list[dict],
+    discussion: list[dict],
+    questions: list[dict],
+    figures: list[dict],
+) -> list[dict]:
+    """Merge all post-lab sections into one ordered block list."""
+    all_blocks = []
     for key in ["purpose", "principle", "equipment", "procedure"]:
-        if key in prelab_sections:
-            parts.append(prelab_sections[key])
-
-    parts.append(records)
-    parts.append(data_analysis)
-    parts.append(discussion)
-    parts.append(questions)
-
-    if figures_html:
-        parts.append(figures_html)
-
-    body = "\n".join(parts)
-
-    html = f"""<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{exp_title} - 完整报告</title>
-<style>
-body {{
-    font-family: "宋体", "SimSun", "Times New Roman", serif;
-    font-size: 12pt;
-    line-height: 1.5;
-    max-width: 210mm;
-    margin: 0 auto;
-    padding: 20px;
-    color: #000;
-}}
-/* 三线表规范 — 确保预览与导出完全一致 */
-table {{
-    border-collapse: collapse;
-    margin: 10px auto;
-    width: 100%;
-    border-left: none;
-    border-right: none;
-    border-top: none;
-    border-bottom: none;
-}}
-thead {{ border-top: 1.5px solid #000; }}
-thead tr {{ border-bottom: 0.75px solid #000; }}
-tbody tr:last-child {{ border-bottom: 1.5px solid #000; }}
-th, td {{
-    padding: 4px 8px;
-    font-size: 10.5pt;
-    border-left: none;
-    border-right: none;
-    text-align: center;
-}}
-</style>
-<script>
-MathJax = {{ tex: {{ inlineMath: [['\\\\(', '\\\\)']], displayMath: [['$$', '$$']], tags: 'ams' }} }};
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
-</head>
-<body>
-{body}
-</body>
-</html>"""
-
-    return html
+        if key in prelab_sections and prelab_sections[key]:
+            all_blocks.extend(prelab_sections[key])
+    all_blocks.extend(records)
+    all_blocks.extend(data_analysis)
+    all_blocks.extend(discussion)
+    all_blocks.extend(questions)
+    all_blocks.extend(figures)
+    return all_blocks

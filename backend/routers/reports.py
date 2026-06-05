@@ -187,102 +187,78 @@ async def assemble_postlab(request: dict):
     filepath = save_report_html(0, exp_title, report_id, html, "完整")
 
     return {"report_id": report_id, "html_path": str(filepath), "html": html}
-# --- DOCX Export ---
+# --- DOCX Export (统一入口) ---
 
 @router.post("/export-docx")
 async def export_docx(request: dict):
-    """Convert assembled HTML report to DOCX and return as downloadable file.
+    """Build DOCX from blocks JSON or template + experiment data.
 
-    Request body: { html: str }
+    Request body options:
+      1. { blocks: [...] }  -- direct blocks rendering
+      2. { template_name, course_id, experiment_id, experiment_data }
+         -- template-driven build
+
     Returns: DOCX binary stream.
     """
     from fastapi.responses import Response
-    from services.docx_service import convert_html_to_docx, is_pandoc_available
 
-    if not is_pandoc_available():
-        raise HTTPException(
-            status_code=501,
-            detail="pandoc 未安装。请安装 pandoc 后重试。",
+    # Path A: Direct blocks -> DOCX (deterministic)
+    blocks = request.get("blocks", None)
+    if blocks and isinstance(blocks, list):
+        try:
+            docx_bytes = _build_docx_from_blocks(blocks)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"DOCX 构建失败: {str(e)}")
+        return Response(
+            content=docx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": "attachment; filename=report.docx"},
         )
 
-    html = request.get("html", "")
-    if not html:
-        raise HTTPException(status_code=400, detail="缺少 html 参数")
-
-    try:
-        docx_bytes = convert_html_to_docx(html)
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    return Response(
-        content=docx_bytes,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": "attachment; filename=report.docx"},
-    )
-
-
-@router.post("/export-docx-v2")
-async def export_docx_v2(request: dict):
-    """Build DOCX from HTML report via python-docx + addFormula2docx renderer.
-
-    Request body: { html: str }
-    Returns: DOCX binary stream.
-    """
-    from fastapi.responses import Response
-    from services.docx_v2 import convert_html_to_docx_v2
-
-    html = request.get("html", "")
-    if not html:
-        raise HTTPException(status_code=400, detail="缺少 html 参数")
-
-    try:
-        docx_bytes = convert_html_to_docx_v2(html)
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    return Response(
-        content=docx_bytes,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": "attachment; filename=report.docx"},
-    )
-
-
-# --- DOCX v3: Template-driven direct build ---
-
-@router.post("/export-docx-v3")
-async def export_docx_v3(request: dict):
-    """Build DOCX directly from a saved template + experiment data.
-
-    Request body: { template_name: str, course_id: str, experiment_id: str, experiment_data: dict }
-    Returns: DOCX binary stream.
-    """
-    from fastapi.responses import Response
-    from services.docx_service import build_from_template
-
+    # Path B: Template-driven build (deterministic)
     template_name = request.get("template_name", "")
-    course_id = request.get("course_id", "")
-    experiment_id = request.get("experiment_id", "")
-    experiment_data = request.get("experiment_data", {})
-
-    if not template_name:
-        raise HTTPException(status_code=400, detail="缺少 template_name 参数")
-    if not course_id:
-        raise HTTPException(status_code=400, detail="缺少 course_id 参数")
-
-    try:
-        docx_bytes = build_from_template(
-            template_name, course_id, experiment_id, experiment_data,
+    if template_name:
+        course_id = request.get("course_id", "")
+        experiment_id = request.get("experiment_id", "")
+        experiment_data = request.get("experiment_data", {})
+        from services.docx_service import build_from_template
+        try:
+            docx_bytes = build_from_template(
+                template_name, course_id, experiment_id, experiment_data,
+            )
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except RuntimeError as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        return Response(
+            content=docx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": "attachment; filename=report.docx"},
         )
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
-    return Response(
-        content=docx_bytes,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": "attachment; filename=report.docx"},
-    )
+    raise HTTPException(status_code=400, detail="缺少 blocks 或 template_name 参数")
+
+
+def _build_docx_from_blocks(blocks: list[dict]) -> bytes:
+    """Build a DOCX file from blocks JSON using deterministic rendering."""
+    import io
+    from services.docx_v2.builder import create_document, clear_first_para, set_tbl_borders
+    from services.block_renderer import blocks_to_docx
+    from docx.shared import Cm
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+
+    doc = create_document()
+    tbl = doc.add_table(rows=1, cols=1)
+    tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_tbl_borders(tbl, sz=4)
+    tbl.rows[0].cells[0].width = Cm(17.47)
+    clear_first_para(tbl.rows[0].cells[0])
+
+    blocks_to_docx(doc, blocks, tbl.rows[0].cells[0])
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
 
 
 @router.get("/template/{template_name}")

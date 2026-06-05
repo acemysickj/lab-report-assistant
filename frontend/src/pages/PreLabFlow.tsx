@@ -83,18 +83,21 @@ export default function PreLabFlow() {
   // ── Display HTML ──
   const contentToShow = store.revisedContent || store.generatedContent;
   const displayHtml = useMemo(() => {
+    console.log('[displayHtml] phase:', store.phase, 'contentToShow length:', contentToShow.length, 'isStreaming:', isStreaming);
     if (store.sections[currentSection]?.length) {
+      console.log('[displayHtml] using saved sections, blocks count:', store.sections[currentSection].length);
       return blocksToHtml(store.sections[currentSection]);
     }
     if (contentToShow && !isStreaming) {
       try {
         const parsed = JSON.parse(contentToShow.trim());
         const blocks = Array.isArray(parsed) ? parsed : (parsed.blocks || []);
+        console.log('[displayHtml] parsed blocks count:', blocks.length, 'first block:', blocks[0]?.type);
         if (blocks.length) return blocksToHtml(blocks);
-      } catch { /* ignore */ }
+      } catch (e) { console.log('[displayHtml] JSON parse error:', e); }
     }
     return '';
-  }, [currentSection, store.sections, contentToShow, isStreaming]);
+  }, [currentSection, store.sections, contentToShow, isStreaming, store.phase]);
 
   // ── Assemble ──
   const doAssemble = async () => {

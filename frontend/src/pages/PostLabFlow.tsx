@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Component, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Button, Space, Input, message, Result, Table, InputNumber,
@@ -275,6 +275,32 @@ function AnalysisStep({
 // ============================================================
 // PostLabFlow Main
 // ============================================================
+
+class PostLabErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: unknown) {
+    console.error('[PostLabFlow] crashed:', error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <Result
+          status="error"
+          title="页面加载失败"
+          subTitle={this.state.error.message || '未知错误'}
+          extra={
+            <Button type="primary" onClick={() => { this.setState({ error: null }); window.location.reload(); }}>
+              刷新重试
+            </Button>
+          }
+        />
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function PostLabFlow() {
   const { courseId, experimentId } = useParams<{ courseId: string; experimentId: string }>();
   const navigate = useNavigate();
@@ -306,10 +332,19 @@ export default function PostLabFlow() {
   const [savedTimestamp, setSavedTimestamp] = useState<number | null>(null);
 
   useEffect(() => {
-    const saved = autoSave.restore();
-    if (saved?.data && (Object.keys(saved.data.cellData || {}).length > 0 || Object.keys(saved.data.sectionContents || {}).length > 0)) {
-      setSavedTimestamp(saved.timestamp);
-      setRestoreModalOpen(true);
+    try {
+      const saved = autoSave.restore();
+      if (saved?.data && typeof saved.data === 'object') {
+        const cellData = (saved.data.cellData || {}) as Record<string, unknown>;
+        const sectionContents = (saved.data.sectionContents || {}) as Record<string, unknown>;
+        if (Object.keys(cellData).length > 0 || Object.keys(sectionContents).length > 0) {
+          setSavedTimestamp(saved.timestamp);
+          setRestoreModalOpen(true);
+        }
+      }
+    } catch {
+      // Corrupted localStorage data — silently clear and continue
+      autoSave.clear();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -498,6 +533,7 @@ export default function PostLabFlow() {
   );
 
   return (
+    <PostLabErrorBoundary>
     <div style={{ maxWidth: 920, margin: '0 auto' }}>
       {/* ---- Restore modal ---- */}
       <Modal
@@ -875,5 +911,6 @@ export default function PostLabFlow() {
         </Card>
       )}
     </div>
+    </PostLabErrorBoundary>
   );
 }

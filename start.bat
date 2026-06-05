@@ -1,8 +1,21 @@
 @echo off
-cd /d "D:\Claude Program\lab-assistant"
+cd /d "D:\AAAOddsAndEnds\PROGRAM\lab-assistant"
 
-start "Backend" cmd /k "cd backend && python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000"
-start "Frontend" cmd /k "cd frontend && npm run dev"
+echo Starting Lab Assistant...
+echo.
 
-echo Backend: http://127.0.0.1:8000
-echo Frontend: http://localhost:5173
+:: Backend — run in background, no separate window
+echo [1/2] Starting backend...
+start /b cmd /c "cd backend && venv\Scripts\python -m uvicorn main:app --host 127.0.0.1 --port 8000 > backend.log 2>&1"
+echo        Backend: http://127.0.0.1:8000 (logs: backend\backend.log)
+
+:: Frontend — one visible terminal
+echo [2/2] Starting frontend...
+start "Lab Assistant" cmd /k "cd frontend && npm run dev"
+
+echo.
+echo Frontend will open at http://localhost:5173
+echo Close this window and the frontend terminal to stop both servers.
+echo.
+echo Press Ctrl+C in the frontend window to stop.
+pause

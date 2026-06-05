@@ -229,6 +229,8 @@ def build_system_prompt(
         '  {"type": "image", "path": "fig1_xxx.svg", "alt": "描述", "caption": "图1 标题"}',
         "- 表格禁止使用 HTML <table> 标签，必须使用 three_line_table 块类型",
         "- 图片禁止使用 <img> 标签，必须使用 image 块类型",
+        "- 【重要】禁止输出任何 HTML 标签（<h2>、<div>、<p> 等），所有内容必须用 JSON block 格式",
+        "- 长内容（实验原理等）也必须输出 JSON 数组，每个段落是一个 body 块，每个小标题是 sub_heading 块",
         "",
         "【实验步骤特殊规范 — 架构图风格】",
         "- 实验步骤必须用内联 SVG 绘制架构图（框图+箭头），不可用传统流程图",

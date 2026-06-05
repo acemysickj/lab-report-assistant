@@ -1,6 +1,11 @@
-"""DOCX v2: python-docx + BeautifulSoup + addFormula2docx OMML.
+"""DOCX v2: python-docx + LaTeX->OMML deterministic rendering.
 
-Adapted from html2docx (pqzx/html2docx, MIT) for DOM→docx rendering.
-LaTeX→OMML via addFormula2docx (Sun-ZhenXing/addFormula2docx, MIT).
+Public API:
+  blocks_to_docx() — blocks JSON -> DOCX elements (via block_renderer)
+  Builder functions for direct DOCX construction.
 """
-from .renderer import render_html_to_docx as convert_html_to_docx_v2
+from .builder import (
+    create_document, add_content_table, reset_equation_counter,
+    heading, sub, body, body_with_math, body_lbl, body_sub,
+    formula, w3table, img, figcap, clear_first_para, set_tbl_borders,
+)

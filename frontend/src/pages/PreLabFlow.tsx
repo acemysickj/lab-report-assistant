@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Space, Input, message, Result, Typography, Alert, Tag, Row, Col, Modal } from 'antd';
 import {
@@ -12,6 +12,7 @@ import {
   BulbOutlined,
 } from '@ant-design/icons';
 import { SECTION_LABELS, type PreLabSection } from '../types';
+import { blocksToHtml, type ReportBlock } from '../utils/blocksToHtml';
 import { assemblePrelab as apiAssemble } from '../api/client';
 import { useSSE } from '../hooks/useSSE';
 import { useAutoSave } from '../hooks/useAutoSave';
@@ -42,7 +43,7 @@ export default function PreLabFlow() {
   const eId = experimentId || sessionStorage.getItem('experimentId') || '';
 
   const [currentStep, setCurrentStep] = useState(0);
-  const [sections, setSections] = useState<Record<string, string>>({});
+  const [sections, setSections] = useState<Record<string, ReportBlock[]>>({});
   const [editingContent, setEditingContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -55,6 +56,23 @@ export default function PreLabFlow() {
 
   const studentInfo = useRef(JSON.parse(sessionStorage.getItem('studentInfo') || '{}')).current;
   const currentSection = PRELAB_SECTIONS[currentStep];
+
+  // Compute display HTML from saved blocks or latest SSE JSON content
+  const displayHtml = useMemo(() => {
+    if (sections[currentSection]?.length) {
+      return blocksToHtml(sections[currentSection]);
+    }
+    const raw = editingContent || reviseSse.content || sse.content;
+    if (raw && !reviseSse.streaming && !sse.streaming) {
+      try {
+        const trimmed = raw.trim();
+        const parsed = JSON.parse(trimmed);
+        const blocks: ReportBlock[] = Array.isArray(parsed) ? parsed : (parsed.blocks || []);
+        if (blocks.length) return blocksToHtml(blocks);
+      } catch { /* still streaming or malformed */ }
+    }
+    return '';
+  }, [currentSection, sections, editingContent, reviseSse.content, sse.content, sse.streaming, reviseSse.streaming]);
 
   // ---- Auto-save & restore ----
   const autoSave = useAutoSave({ key: `prelab_${cId}_${eId}` });
@@ -94,7 +112,7 @@ export default function PreLabFlow() {
   const handleRestore = () => {
     const saved = autoSave.restore();
     if (saved?.data) {
-      setSections((saved.data.sections as Record<string, string>) || {});
+      setSections((saved.data.sections as Record<string, ReportBlock[]>) || {});
       setCurrentStep((saved.data.currentStep as number) || 0);
       message.success('已恢复上次进度');
     }
@@ -131,10 +149,25 @@ export default function PreLabFlow() {
   }, [cId, eId, currentSection, editingContent, sse.content, feedback, reviseSse]);
 
   const handleAccept = useCallback(() => {
-    const content = editingContent || reviseSse.content || sse.content;
-    if (!content) { message.warning('请先生成或修改内容'); return; }
+    const raw = editingContent || reviseSse.content || sse.content;
+    if (!raw) { message.warning('请先生成或修改内容'); return; }
+    // Parse JSON → blocks
+    let blocks: ReportBlock[];
+    try {
+      const trimmed = raw.trim();
+      const parsed = JSON.parse(trimmed);
+      blocks = Array.isArray(parsed) ? parsed : (parsed.blocks || []);
+    } catch {
+      const match = raw.match(/\[.*\]/s);
+      if (match) {
+        try { blocks = JSON.parse(match[0]); } catch { blocks = []; }
+      } else {
+        blocks = [];
+      }
+    }
+    if (!blocks.length) { message.warning('未能解析生成内容'); return; }
 
-    setSections((prev) => ({ ...prev, [currentSection]: content }));
+    setSections((prev) => ({ ...prev, [currentSection]: blocks }));
 
     if (currentStep < PRELAB_SECTIONS.length - 1) {
       setCurrentStep((s) => s + 1);
@@ -142,14 +175,14 @@ export default function PreLabFlow() {
       setEditingContent(''); setIsEditing(false);
       setReviewResult(null);
     } else {
-      handleAssemble(content);
+      handleAssemble(blocks);
     }
   }, [currentStep, editingContent, sse.content, reviseSse.content, currentSection]);
 
-  const handleAssemble = useCallback(async (lastContent?: string) => {
+  const handleAssemble = useCallback(async (lastBlocks?: ReportBlock[]) => {
     const allSections = {
       ...sections,
-      [currentSection]: lastContent || editingContent || reviseSse.content || sse.content,
+      ...(lastBlocks ? { [currentSection]: lastBlocks } : {}),
     };
 
     setIsReviewing(true);
@@ -158,7 +191,7 @@ export default function PreLabFlow() {
     try {
       const result = await apiAssemble({
         course_id: cId, experiment_id: eId,
-        sections: allSections, student_info: studentInfo,
+        sections: allSections as any, student_info: studentInfo,
       });
       message.destroy('assemble');
       sessionStorage.setItem('lastReportHtml', result.html);
@@ -176,7 +209,7 @@ export default function PreLabFlow() {
         round: 1,
       });
     }
-  }, [cId, eId, sections, currentSection, editingContent, sse.content, reviseSse.content, studentInfo]);
+  }, [cId, eId, sections, currentSection, studentInfo]);
 
   // ---- Completion screen ----
   if (complete) {
@@ -331,7 +364,7 @@ export default function PreLabFlow() {
             boxShadow: '0 1px 4px rgba(44,36,22,0.04)',
           }}>
             <MathPreview
-              html={currentContent}
+              html={displayHtml}
               loading={sse.streaming || reviseSse.streaming}
               status={sse.status || reviseSse.status}
               height="400px"

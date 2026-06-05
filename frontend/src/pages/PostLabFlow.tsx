@@ -185,11 +185,12 @@ export default function PostLabFlow() {
 
   const isStreaming = sse.streaming || reviseSse.streaming;
   useEffect(() => {
-    if (store.phase === 'content_gen' && !isStreaming && (sse.content || reviseSse.content)) {
+    if (store.phase === 'content_gen' && !isStreaming) {
       if (reviseSse.content) store.finishRevise(reviseSse.content);
       else if (sse.content) store.finishGenerate(sse.content);
+      else if (sse.error) store.setError(sse.error);
     }
-  }, [store.phase, isStreaming, sse.content, reviseSse.content]);
+  }, [store.phase, isStreaming, sse.content, reviseSse.content, sse.error]);
 
   // ── Display HTML ──
   const contentToShow = store.revisedContent || store.generatedContent;

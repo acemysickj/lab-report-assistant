@@ -24,6 +24,7 @@ interface PrelabState {
   acceptSection: () => void;
   finishAssemble: () => void;
   resetError: () => void;
+  setError: (msg: string) => void;
   setFeedback: (text: string) => void;
   restore: (data: { sections: Record<string, ReportBlock[]>; currentStep: number }) => void;
   clearAll: () => void;
@@ -52,7 +53,7 @@ export const usePrelabStore = create<PrelabState>()(
 
       finishRevise: (content: string) => set({ phase: 'review', revisedContent: content }),
 
-      startEdit: () => {},
+      startEdit: () => set({ phase: 'editing' }),
 
       cancelEdit: () => set({ phase: 'review' }),
 
@@ -79,6 +80,8 @@ export const usePrelabStore = create<PrelabState>()(
       finishAssemble: () => set({ phase: 'done' }),
 
       resetError: () => set({ error: null }),
+
+      setError: (msg: string) => set({ phase: 'idle', error: msg }),
 
       setFeedback: (text: string) => set({ feedback: text }),
 

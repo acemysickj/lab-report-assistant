@@ -72,9 +72,12 @@ export default function PreLabFlow() {
         store.finishRevise(reviseSse.content);
       } else if (sse.content) {
         store.finishGenerate(sse.content);
+      } else {
+        // SSE stopped with no content — likely an error
+        store.setError(sse.error || '生成失败，请检查 API Key 是否有效');
       }
     }
-  }, [store.phase, isStreaming, sse.content, reviseSse.content, store]);
+  }, [store.phase, isStreaming, sse.content, reviseSse.content, sse.error, store]);
 
   // ── Display HTML ──
   const contentToShow = store.revisedContent || store.generatedContent;

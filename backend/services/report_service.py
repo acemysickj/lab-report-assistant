@@ -84,12 +84,11 @@ async def generate_with_review(
         else:
             yield {"type": "status", "message": "⚠️ 2轮审查后仍有改进空间，已提交最佳版本"}
 
-    # --- Step 3: Render blocks to HTML and stream ---
-    from services.block_renderer import blocks_to_html
-    html = blocks_to_html(blocks, include_mathjax=False)
+    # --- Step 3: Stream blocks JSON to frontend ---
+    result_json = json.dumps({"blocks": blocks}, ensure_ascii=False)
     chunk_size = 300
-    for i in range(0, len(html), chunk_size):
-        yield {"type": "chunk", "content": html[i:i + chunk_size]}
+    for i in range(0, len(result_json), chunk_size):
+        yield {"type": "chunk", "content": result_json[i:i + chunk_size]}
 
     yield {"type": "done"}
 

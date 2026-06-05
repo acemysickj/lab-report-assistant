@@ -4,6 +4,7 @@ These functions are the stable API that AI-generated scripts call to build DOCX.
 """
 from __future__ import annotations
 import json
+import re as _re_builtin
 from pathlib import Path
 
 from docx import Document
@@ -172,10 +173,10 @@ def body_sub(cell, text, space_before=0, formula_config_path=None):
 
 
 def formula(cell, latex):
-    """Numbered display equation: centered OMML + right-aligned (N) via tab stops.
+    """Numbered display equation using borderless 3-column table.
 
-    Uses latex_to_mathml → mathml_to_omml from docx_v2.utils.
-    Falls back to Courier text on failure.
+    Layout: [0.8cm spacer | 11.2cm centered OMML | 2.6cm right (N)]
+    Falls back to Courier text on conversion failure.
     """
     from .utils import latex_to_mathml, mathml_to_omml
 
@@ -183,38 +184,63 @@ def formula(cell, latex):
     try:
         mathml = latex_to_mathml(latex, 'block')
         omml = mathml_to_omml(mathml, 'block')
-        mNS = 'http://schemas.openxmlformats.org/officeDocument/2006/math'
-        oMath = omml.find(f'{{{mNS}}}oMath')
-        if oMath is None:
-            oMath = omml
     except Exception:
         p = cell.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         add_run(p, f'{latex}    ({n})', size=Pt(12))
         return
 
-    p = cell.add_paragraph()
-    pf = p.paragraph_format
-    pf.line_spacing = 1.5
-    pf.space_before = Pt(4)
-    pf.space_after = Pt(4)
+    table = cell.add_table(rows=1, cols=3)
+    table.autofit = False
+    _remove_table_borders(table)
 
-    pPr = p._element.get_or_add_pPr()
-    tabs = OxmlElement('w:tabs')
-    tc = OxmlElement('w:tab')
-    tc.set(qn('w:val'), 'center')
-    tc.set(qn('w:pos'), '4800')
-    tabs.append(tc)
-    tr = OxmlElement('w:tab')
-    tr.set(qn('w:val'), 'right')
-    tr.set(qn('w:pos'), '9600')
-    tabs.append(tr)
-    pPr.append(tabs)
+    cell_spacer, cell_eq, cell_num = table.rows[0].cells
+    cell_spacer.width = Cm(0.8)
+    cell_eq.width = Cm(11.2)
+    cell_num.width = Cm(2.6)
 
-    rt = p.add_run('\t')
-    rt._element.addnext(oMath)
-    p.add_run('\t')
-    add_run(p, f'({n})', size=Pt(12))
+    # Inject OMML into center cell
+    eq_para = cell_eq.paragraphs[0]
+    eq_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    eq_para._element.append(etree.fromstring(etree.tostring(omml)))
+
+    # Equation number in right cell
+    num_para = cell_num.paragraphs[0]
+    num_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    add_run(num_para, f'({n})', size=Pt(12))
+
+    # Vertical center alignment for all cells
+    for c in table.rows[0].cells:
+        tcPr = c._tc.get_or_add_tcPr()
+        vAlign = OxmlElement('w:vAlign')
+        vAlign.set(qn('w:val'), 'center')
+        tcPr.append(vAlign)
+
+    # Tiny gap after equation
+    spacer_p = cell.add_paragraph('')
+    spacer_p.paragraph_format.space_before = Pt(2)
+    spacer_p.paragraph_format.space_after = Pt(4)
+    spacer_p.paragraph_format.line_spacing = 0.2
+
+
+def _remove_table_borders(table):
+    """Remove all borders from a table — make it invisible."""
+    tbl = table._tbl
+    tblPr = tbl.tblPr
+    if tblPr is None:
+        tblPr = OxmlElement('w:tblPr')
+        tbl.insert(0, tblPr)
+    for old in tblPr.findall(qn('w:tblBorders')):
+        tblPr.remove(old)
+    borders = OxmlElement('w:tblBorders')
+    for border_name in ('top', 'left', 'bottom', 'right', 'insideH', 'insideV'):
+        el = OxmlElement(f'w:{border_name}')
+        el.set(qn('w:val'), 'none')
+        el.set(qn('w:sz'), '0')
+        el.set(qn('w:space'), '0')
+        el.set(qn('w:color'), 'auto')
+        borders.append(el)
+    tblPr.append(borders)
 
 
 def w3table(cell, headers, rows, caption=None):
@@ -353,3 +379,57 @@ def add_content_table(doc_or_cell, rows=4, cell_width_cm=17.47):
 def reset_equation_counter():
     """Reset the global equation counter for a new document."""
     _eq.n = 0
+
+
+def body_with_math(cell, text, space_before=0, size=Pt(12)):
+    """Body paragraph with inline $...$ LaTeX rendered as OMML.
+
+    Splits text on $...$ boundaries: normal text becomes runs,
+    LaTeX segments become inline OMML elements inserted directly
+    into the paragraph XML.
+    Falls back to Courier text on conversion failure.
+    """
+    from .utils import latex_to_mathml, mathml_to_omml
+
+    p = cell.add_paragraph()
+    pf = p.paragraph_format
+    pf.line_spacing = 1.5
+    pf.space_before = Pt(space_before)
+    pf.space_after = Pt(0)
+
+    # Split on $...$ — captures content between $ signs
+    segments = _re_builtin.split(r'(?<!\\)\$([^$]+)(?<!\\)\$', text)
+    for i, seg in enumerate(segments):
+        if seg is None or seg == '':
+            continue
+        if i % 2 == 1:  # LaTeX segment (odd indices in split result)
+            latex = seg.strip()
+            if not latex:
+                continue
+            try:
+                mathml = latex_to_mathml(latex, 'inline')
+                omml = mathml_to_omml(mathml, 'inline')
+                # Insert OMML element directly into paragraph XML
+                p._element.append(etree.fromstring(etree.tostring(omml)))
+            except Exception:
+                # Fallback: render as Courier text
+                safe = _sanitize_text(latex)
+                run = p.add_run(f'${safe}$')
+                run.font.name = 'Courier'
+                run.font.size = size
+                rPr = run._element.get_or_add_rPr()
+                rf = parse_xml(f'<w:rFonts {nsdecls("w")} w:eastAsia="宋体"/>')
+                ex = rPr.find(qn('w:rFonts'))
+                if ex is not None:
+                    rPr.remove(ex)
+                rPr.insert(0, rf)
+        else:
+            # Normal text segment
+            if seg.strip():
+                add_run(p, seg, size=size)
+    return p
+
+
+def _sanitize_text(text: str) -> str:
+    """Remove XML-invalid control characters."""
+    return _re_builtin.sub('[\x00-\x08\x0b\x0c\x0e-\x1f]', '', text)

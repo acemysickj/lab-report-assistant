@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+body {{
+    font-family: "宋体", "SimSun", "Times New Roman", serif;
+    font-size: 12pt;
+    line-height: 1.5;
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 20px;
+    color: #000;
+}}
+table {{
+    border-collapse: collapse;
+    margin: 10px auto;
+    width: 100%;
+}}
+thead {{ border-top: 1.5px solid #000; }}
+thead tr {{ border-bottom: 0.75px solid #000; }}
+tbody tr:last-child {{ border-bottom: 1.5px solid #000; }}
+th, td {{
+    padding: 4px 8px;
+    font-size: 10.5pt;
+    text-align: center;
+}}
+</style>
+<script>
+MathJax = {{ tex: {{ inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$']], tags: 'ams' }} }};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+</head>
+<body>
+<p>&lt;h2&gt;一、实验目的&lt;/h2&gt;
+&lt;p&gt;1. 学会用热分析法测绘二组分金属相图。&lt;/p&gt;
+&lt;p&gt;2. 掌握热电偶测量温度的原理及使用方法。&lt;/p&gt;
+&lt;p&gt;3. 通过绘制Pb-Sn二组分体系的步冷曲线，确定体系的相变温度，从而绘制出完整的相图。&lt;/p&gt;</p>
+<p>&lt;p&gt;&amp;lt;div style="font-family: '宋体', SimSun; font-size: 12pt; line-height: 1.15; text-align: justify;"&amp;gt;
+  &amp;lt;h2 style="font-family: '黑体', SimHei; font-size: 14pt; text-align: center; margin-top: 6pt; margin-bottom: 6pt;"&amp;gt;二、实验原理&amp;lt;/h2&amp;gt;
+  &amp;lt;p style="font-family: '宋体', SimSun; font-size: 12pt; text-indent: 2em; margin: 0; line-height: 1.15;"&amp;gt;
+    二组分固-液相图是表示两种组分在不同组成和温度下，体系相态变化规律的图形。相图对于研究合金、熔盐、陶瓷等材料的制备工艺具有重要的指导意义。本实验通过测定不同组成的二组分体系在冷却过程中的温度-时间曲线（步冷曲线），从而确定体系的液相线温度（凝固点），绘制出完整的固-液相图。
+  &amp;lt;/p&amp;gt;
+  &amp;lt;p style="font-family: '宋体', SimSun; font-size: 12pt; text-indent: 2em; margin: 0; line-height: 1.15;"&amp;gt;
+    根据吉布斯相律，对于二组分体系，在不考虑气相（常压下冷凝液上方气相可忽略）时，自由度数 &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;F&amp;lt;/span&amp;gt; = &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;C&amp;lt;/span&amp;gt; − &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;P&amp;lt;/span&amp;gt; + 1 = 3 − &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;P&amp;lt;/span&amp;gt;，其中 &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;C&amp;lt;/span&amp;gt; = 2，&amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;P&amp;lt;/span&amp;gt; 为相数。单相时 &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;F&amp;lt;/span&amp;gt; = 2，两相共存时 &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;F&amp;lt;/span&amp;gt; = 1，三相共存（低共熔）时 &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;F&amp;lt;/span&amp;gt; = 0，温度恒定。
+  &amp;lt;/p&amp;gt;
+  &amp;lt;p style="font-family: '宋体', SimSun; font-size: 12pt; text-indent: 2em; margin: 0; line-height: 1.15;"&amp;gt;
+    本实验采用热分析法（步冷曲线法）测定相图。将已知配比的二组分混合物（如尿素-萘体系）加热至完全熔化成均一液相后，使其缓慢冷却。记录冷却过程中温度随时间的变化数据，绘制温度-时间曲线。曲线上的转折点（斜率突变处）对应液相线温度（开始析出固体的温度），水平平台对应低共熔温度。连接不同组成下的液相线温度点，即可得到完整的 &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;T&amp;lt;/span&amp;gt;–&amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;x&amp;lt;/span&amp;gt; 相图。以简单低共熔体系为例，其相图由两条液相线（&amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;T&amp;lt;/span&amp;gt;&amp;lt;sub style="font-family: 'Times New Roman', serif;"&amp;gt;A&amp;lt;/sub&amp;gt; 线、&amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;T&amp;lt;/span&amp;gt;&amp;lt;sub style="font-family: 'Times New Roman', serif;"&amp;gt;B&amp;lt;/sub&amp;gt; 线）和一条水平低共熔线组成。液相线是体系从单相液态开始析出固态纯组分时的温度曲线，其数学关系可由理想溶液凝固点降低方程近似描述：
+  &amp;lt;/p&amp;gt;
+  &amp;lt;div style="text-align: center; margin: 6pt 0;"&amp;gt;
+    &amp;lt;span style="font-family: 'Times New Roman', serif; font-size: 12pt;"&amp;gt;
+      &amp;lt;span style="font-style: italic;"&amp;gt;ln x&amp;lt;/span&amp;gt;&amp;lt;sub style="font-style: italic;"&amp;gt;A&amp;lt;/sub&amp;gt; = −&amp;lt;span style="font-style: italic;"&amp;gt;Δ&amp;lt;/span&amp;gt;&amp;lt;sub style="font-style: italic;"&amp;gt;fus&amp;lt;/sub&amp;gt;&amp;lt;span style="font-style: italic;"&amp;gt;H&amp;lt;/span&amp;gt;&amp;lt;sub style="font-style: italic;"&amp;gt;A&amp;lt;/sub&amp;gt;&amp;lt;sup&amp;gt;°&amp;lt;/sup&amp;gt; / &amp;lt;span style="font-style: italic;"&amp;gt;R&amp;lt;/span&amp;gt; · (1/&amp;lt;span style="font-style: italic;"&amp;gt;T&amp;lt;/span&amp;gt; − 1/&amp;lt;span style="font-style: italic;"&amp;gt;T&amp;lt;/span&amp;gt;&amp;lt;sub style="font-style: italic;"&amp;gt;A&amp;lt;/sub&amp;gt;&amp;lt;sup&amp;gt;°&amp;lt;/sup&amp;gt;)
+    &amp;lt;/span&amp;gt;
+  &amp;lt;/div&amp;gt;
+  &amp;lt;p style="font-family: '宋体', SimSun; font-size: 12pt; text-indent: 2em; margin: 0; line-height: 1.15;"&amp;gt;
+    其中 &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;x&amp;lt;/span&amp;gt;&amp;lt;sub style="font-family: 'Times New Roman', serif;"&amp;gt;A&amp;lt;/sub&amp;gt; 为组分 A 在液相中的摩尔分数，&amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;Δ&amp;lt;/span&amp;gt;&amp;lt;sub style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;fus&amp;lt;/sub&amp;gt;&amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;H&amp;lt;/span&amp;gt;&amp;lt;sub style="font-family: 'Times New Roman', serif;"&amp;gt;A&amp;lt;/sub&amp;gt;&amp;lt;sup&amp;gt;°&amp;lt;/sup&amp;gt; 为纯组分 A 的摩尔熔化焓，&amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;T&amp;lt;/span&amp;gt;&amp;lt;sub style="font-family: 'Times New Roman', serif;"&amp;gt;A&amp;lt;/sub&amp;gt;&amp;lt;sup&amp;gt;°&amp;lt;/sup&amp;gt; 为纯组分 A 的熔点，&amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;R&amp;lt;/span&amp;gt; 为摩尔气体常数。该方程表明，当加入组分 B 时，组分 A 的凝固点下降。
+  &amp;lt;/p&amp;gt;
+  &amp;lt;p style="font-family: '宋体', SimSun; font-size: 12pt; text-indent: 2em; margin: 0; line-height: 1.15;"&amp;gt;
+    低共熔点的温度 &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;T&amp;lt;/span&amp;gt;&amp;lt;sub style="font-family: 'Times New Roman', serif;"&amp;gt;E&amp;lt;/sub&amp;gt; 和组成 &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;x&amp;lt;/span&amp;gt;&amp;lt;sub style="font-family: 'Times New Roman', serif;"&amp;gt;E&amp;lt;/sub&amp;gt; 由两条液相线的交点决定，在该点处体系同时析出两种纯固相，温度保持恒定直至全部液体凝固完毕。通过实验测得的步冷曲线，可准确确定 &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;T&amp;lt;/span&amp;gt;&amp;lt;sub style="font-family: 'Times New Roman', serif;"&amp;gt;E&amp;lt;/sub&amp;gt; 和 &amp;lt;span style="font-family: 'Times New Roman', serif; font-style: italic;"&amp;gt;x&amp;lt;/span&amp;gt;&amp;lt;sub style="font-family: 'Times New Roman', serif;"&amp;gt;E&amp;lt;/sub&amp;gt;。
+  &amp;lt;/p&amp;gt;
+  &amp;lt;p style="font-family: '宋体', SimSun; font-size: 12pt; text-indent: 2em; margin: 0; line-height: 1.15;"&amp;gt;
+    本实验以萘-二苯胺为研究体系。萘（C&amp;lt;sub&amp;gt;10&amp;lt;/sub&amp;gt;H&amp;lt;sub&amp;gt;8&amp;lt;/sub&amp;gt;）的熔点为 80.2 ℃，二苯胺（C&amp;lt;sub&amp;gt;12&amp;lt;/sub&amp;gt;H&amp;lt;sub&amp;gt;11&amp;lt;/sub&amp;gt;N）的熔点为 53.0 ℃，两者形成简单低共熔体系，低共熔温度约为 32.0 ℃，低共熔组成约为 40.0% 二苯胺（质量分数）。该体系无毒、操作安全、冷却速度适中，适合本科实验教学。
+  &amp;lt;/p&amp;gt;
+&amp;lt;/div&amp;gt;&lt;/p&gt;</p>
+<p>&lt;p&gt;[heading_1] 三、实验装置、设备及试剂
+
+本实验采用热分析法（步冷曲线法）测定二组分金属固-液相图，主要装置为自行组装的步冷曲线测量系统，包括管式电阻炉、热电偶、温度记录仪及样品坩埚等。实验装置装配示意图如图1所示。
+[图片] path=fig1_equipment_setup.svg alt=步冷曲线测量装置示意图 caption=&amp;lt;b&amp;gt;图1 步冷曲线测量装置示意图&amp;lt;/b&amp;gt;
+装置核心部分为管式电阻炉（额定功率1.5 kW，最高温度1000 ℃），用于加热熔化样品。热电偶采用镍铬-镍硅（K型）热电偶，测温范围0~1300 ℃，精度±1.5 ℃，其热端插入样品坩埚中心，冷端置于冰水混合物中（0 ℃）作为参考点。温度记录仪为无纸记录仪（型号XSR70A），可实时采集并存储温度数据，采样间隔设为1 s。样品坩埚为刚玉坩埚（容积10 mL），每次实验使用两个坩埚分别盛放纯组分和混合物样品。
+实验所用试剂及规格列于表1。
+[表格标题] &amp;lt;b&amp;gt;表1 实验试剂及规格&amp;lt;/b&amp;gt;
+[表头] 试剂名称 | 化学式 | 纯度 | 生产厂家
+[行] 铋 | Bi | 99.99% | 国药集团化学试剂有限公司
+[行] 锡 | Sn | 99.99% | 国药集团化学试剂有限公司
+[行] 石墨粉 | C | 化学纯 | 国药集团化学试剂有限公司
+其他设备包括：电子分析天平（梅特勒-托利多AB204-S，精度0.0001 g），用于精确称量金属样品；玛瑙研钵，用于混合粉末样品；坩埚钳、石棉手套等辅助工具。&lt;/p&gt;</p>
+<p>&lt;h2&gt;四、实验步骤&lt;/h2&gt;
+&lt;p&gt;本实验采用热分析法（步冷曲线法）测定不同配比的Bi-Cd二组分体系在冷却过程中的温度-时间关系，通过步冷曲线的转折点确定相变温度，进而绘制Bi-Cd二元相图。实验前需完成样品称量、熔样、步冷曲线测定及数据处理等步骤，整体流程如架构图所示。&lt;/p&gt;
+&lt;p style="text-align:center;"&gt;&lt;img src="fig_procedure_overview.svg" alt="实验步骤架构图" style="max-width:100%;"&gt;&lt;/p&gt;
+&lt;p style="text-align:center;font-size:10.5pt;"&gt;图1 实验步骤架构图&lt;/p&gt;
+&lt;h3&gt;1. 样品配比计算与称量&lt;/h3&gt;
+&lt;p&gt;根据Bi-Cd二元相图特征，需配制不同质量分数的混合物，以覆盖低共熔组成两侧。Bi的熔点为271.3℃，Cd的熔点为321.1℃，低共熔温度约为140℃，低共熔组成约为Cd质量分数40%。本实验配制以下6个样品（总质量均为20g）：&lt;/p&gt;
+&lt;p style="text-align:center;font-weight:bold;font-size:10.5pt;"&gt;表1 样品配比表&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;&lt;tr&gt;
+&lt;th&gt;样品编号&lt;/th&gt;
+&lt;th&gt;Cd质量分数(%)&lt;/th&gt;
+&lt;th&gt;Cd质量(g)&lt;/th&gt;
+&lt;th&gt;Bi质量(g)&lt;/th&gt;
+&lt;/tr&gt;&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0.00&lt;/td&gt;
+&lt;td&gt;20.00&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;2&lt;/td&gt;
+&lt;td&gt;20&lt;/td&gt;
+&lt;td&gt;4.00&lt;/td&gt;
+&lt;td&gt;16.00&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;3&lt;/td&gt;
+&lt;td&gt;30&lt;/td&gt;
+&lt;td&gt;6.00&lt;/td&gt;
+&lt;td&gt;14.00&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;4&lt;/td&gt;
+&lt;td&gt;40&lt;/td&gt;
+&lt;td&gt;8.00&lt;/td&gt;
+&lt;td&gt;12.00&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;5&lt;/td&gt;
+&lt;td&gt;60&lt;/td&gt;
+&lt;td&gt;12.00&lt;/td&gt;
+&lt;td&gt;8.00&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;6&lt;/td&gt;
+&lt;td&gt;100&lt;/td&gt;
+&lt;td&gt;20.00&lt;/td&gt;
+&lt;td&gt;0.00&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;用分析天平分别称取各组分，精度±0.01g。将称好的金属粉末装入洁净的硬质玻璃试管中，加入少量石墨粉（约0.1g）作为覆盖剂，防止氧化，并轻轻敲实。&lt;/p&gt;
+&lt;h3&gt;2. 熔样与热电偶安装&lt;/h3&gt;
+&lt;p&gt;将装有样品的试管放入管式电阻炉中，加热至样品完全熔化（温度高于熔点约50℃）。熔样过程中注意观察样品状态，待全部熔化为液态后，取出试管，用玻璃棒搅拌均匀。立即将热电偶（K型，已校准）插入熔体中心位置，用石棉塞固定热电偶位置，确保测温端浸没在熔体中。热电偶另一端连接温度记录仪或数字万用表（精度0.1℃）。&lt;/p&gt;
+&lt;p&gt;关键点与难点：①热电偶必须完全浸没，否则测量温度偏低；②熔样温度不宜过高，防止金属挥发或氧化；③搅拌要均匀，确保成分均一。&lt;/p&gt;
+&lt;h3&gt;3. 步冷曲线测定&lt;/h3&gt;
+&lt;p&gt;将装有熔体和热电偶的试管从炉中取出，置于室温空气中自然冷却。立即启动计时器（秒表）和温度记录，每隔15秒记录一次温度，直至温度降至100℃以下。对于每个样品，重复测定2次，取平均值作为步冷数据。记录过程中注意观察温度变化趋势，在温度下降缓慢或出现平台时加密记录（每5秒一次）。&lt;/p&gt;
+&lt;p&gt;待观察现象：①纯金属（样品1和6）冷却时，在熔点处出现水平平台（温度恒定），持续至全部凝固；②混合物冷却时，在液相线温度出现转折点（斜率变化），在低共熔温度出现水平平台；③低共熔组成样品（样品4）只出现一个水平平台，无斜率变化。&lt;/p&gt;
+&lt;p&gt;待测数据：①各样品冷却过程中温度-时间数据（t/min, T/℃）；②步冷曲线的转折点温度（液相线温度）和平台温度（低共熔温度）。&lt;/p&gt;
+&lt;h3&gt;4. 数据处理与相图绘制&lt;/h3&gt;
+&lt;p&gt;将每个样品的温度-时间数据绘制步冷曲线（T-t图），从曲线上读取：①第一个转折点（液相线温度）——对应开始析出固相的温度；②水平平台温度——对应低共熔反应温度。将各组成样品的液相线温度和低共熔温度汇总，以Cd质量分数为横坐标、温度为纵坐标，绘制Bi-Cd二元相图。&lt;/p&gt;
+&lt;p&gt;关键点与难点：①转折点读取需借助切线法或二次差分法，减少主观误差；②过冷现象可能导致转折点滞后，需结合平台温度校正；③低共熔温度应一致（约140℃），若偏差&amp;gt;5℃，需检查热电偶或样品配比。&lt;/p&gt;
+&lt;p style="text-align:center;"&gt;&lt;img src="fig_step_curve.svg" alt="步冷曲线示意图" style="max-width:100%;"&gt;&lt;/p&gt;
+&lt;p style="text-align:center;font-size:10.5pt;"&gt;图2 步冷曲线示意图（纯金属与混合物对比）&lt;/p&gt;
+&lt;h3&gt;5. 注意事项&lt;/h3&gt;
+&lt;p&gt;①金属粉末在称量和使用过程中注意防潮，避免氧化；②熔样时试管口不可对人，防止喷溅；③热电偶使用前后需用标准温度计校准；④实验结束后，将试管中凝固金属取出回收，清洗试管；⑤所有数据记录需使用签字笔，涂改处划去并签名。&lt;/p&gt;</p>
+</body>
+</html>

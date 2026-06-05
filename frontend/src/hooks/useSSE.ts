@@ -58,7 +58,7 @@ export function useSSE() {
                     setStreaming(false);
                     return;
                   } else if (data.type === 'error') {
-                    setError(data.content);
+                    setError(data.message || data.content || '生成失败');
                     setStreaming(false);
                     return;
                   }

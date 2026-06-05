@@ -105,3 +105,23 @@ class DocxBuildRequest(BaseModel):
     course_id: str
     experiment_id: str
     experiment_data: dict = {}
+
+
+# --- LLM Structured Output ---
+
+class ReportBlock(BaseModel):
+    """LLM 生成的单个报告内容块。"""
+    type: Literal["section_heading", "sub_heading", "body",
+                  "display_formula", "three_line_table", "image"]
+    text: str = ""              # section_heading / sub_heading / body
+    latex: str = ""             # display_formula
+    headers: list[str] = []     # three_line_table
+    rows: list[list[str]] = []  # three_line_table
+    caption: str = ""           # three_line_table / image
+    path: str = ""              # image
+    alt: str = ""               # image alt text
+
+
+class ReportContent(BaseModel):
+    """LLM 输出的完整报告内容。"""
+    blocks: list[ReportBlock] = []

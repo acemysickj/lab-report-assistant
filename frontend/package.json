@@ -9,11 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "antd": "^5.22.0",
     "@ant-design/icons": "^5.5.0",
+    "antd": "^5.22.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.0.0"
+    "react-router-dom": "^7.0.0",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

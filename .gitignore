@@ -23,3 +23,5 @@ docs/
 test/
 gsap-skills/
 output/
+backend/backend.log
+backend/venv/

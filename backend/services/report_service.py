@@ -33,6 +33,7 @@ async def generate_with_review(
     section: str,
     student_info: StudentInfo,
     extra_context: str = "",
+    api_key: str | None = None,
 ) -> AsyncGenerator[dict, None]:
     """Generate content with internal review loop.
 
@@ -53,7 +54,7 @@ async def generate_with_review(
     yield {"type": "status", "message": f"撰写 Agent 正在生成「{section}」..."}
 
     content = ""
-    async for chunk in stream_generate(system_prompt, user_message):
+    async for chunk in stream_generate(system_prompt, user_message, api_key=api_key):
         content += chunk
 
     if "[生成错误" in content:
@@ -70,7 +71,7 @@ async def generate_with_review(
         yield {"type": "status", "message": f"审查 Agent 第 {round_num} 轮审查中..."}
 
         readable = _blocks_to_review_text(blocks)
-        review = await _review_section(course_id, experiment_id, section, readable, round_num)
+        review = await _review_section(course_id, experiment_id, section, readable, round_num, api_key=api_key)
 
         if review["passed"]:
             yield {"type": "status", "message": "审查通过 ✓"}
@@ -78,7 +79,7 @@ async def generate_with_review(
 
         if round_num < MAX_REVIEW_ROUNDS:
             yield {"type": "status", "message": f"审查未通过，修改 Agent 正在修改..."}
-            revised_raw = await _revise_content(course_id, experiment_id, section, readable, review["feedback"])
+            revised_raw = await _revise_content(course_id, experiment_id, section, readable, review["feedback"], api_key=api_key)
             blocks = _parse_blocks_json(revised_raw)
         else:
             yield {"type": "status", "message": "⚠️ 2轮审查后仍有改进空间，已提交最佳版本"}
@@ -99,6 +100,7 @@ async def _review_section(
     section: str,
     content: str,
     round_num: int,
+    api_key: str | None = None,
 ) -> dict:
     """Review a section. Returns {passed, feedback, round}."""
     system_prompt = build_review_prompt(section, course_id, experiment_id, content)
@@ -119,7 +121,7 @@ async def _review_section(
         "如果有问题，给出具体修改意见，指明位置和方向。"
     )
 
-    response = await generate_sync(system_prompt, user_message, temperature=0.3, max_tokens=2048)
+    response = await generate_sync(system_prompt, user_message, temperature=0.3, max_tokens=2048, api_key=api_key)
     passed = response.strip().startswith("通过") or "质量合格" in response or "没有问题" in response
 
     return {"passed": passed, "feedback": response, "round": round_num}
@@ -131,6 +133,7 @@ async def _revise_content(
     section: str,
     content: str,
     feedback: str,
+    api_key: str | None = None,
 ) -> str:
     """Revise content based on review feedback."""
     system_prompt = (
@@ -149,7 +152,7 @@ async def _revise_content(
         "直接输出修改后的完整 HTML："
     )
 
-    revised = await generate_sync(system_prompt, user_message, temperature=0.5, max_tokens=4096)
+    revised = await generate_sync(system_prompt, user_message, temperature=0.5, max_tokens=4096, api_key=api_key)
     return _strip_markdown_wrappers(revised) if not revised.startswith("[生成错误") else content
 
 

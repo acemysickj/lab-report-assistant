@@ -41,6 +41,7 @@ async def generate_prelab_section(request: PreLabGenerateRequest):
             request.experiment_id,
             request.section,
             request.student_info,
+            api_key=request.api_key,
         ):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
@@ -57,7 +58,7 @@ async def revise_prelab_section(request: ReviseRequest):
     user_message = f"原始内容：\n{request.content}\n\n用户反馈：\n{request.feedback}\n\n直接输出修改后的完整 HTML："
 
     async def event_stream():
-        async for chunk in stream_generate(system_prompt, user_message):
+        async for chunk in stream_generate(system_prompt, user_message, api_key=request.api_key):
             yield f"data: {json.dumps({'type': 'chunk', 'content': chunk}, ensure_ascii=False)}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
@@ -139,6 +140,7 @@ async def generate_postlab_section(request: PostLabGenerateRequest):
             request.section,
             request.student_info,
             extra_context=extra,
+            api_key=request.api_key,
         ):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
@@ -152,7 +154,7 @@ async def revise_postlab_section(request: ReviseRequest):
     user_message = f"原始内容：\n{request.content}\n\n用户反馈：\n{request.feedback}\n\n直接输出修改后的完整 HTML："
 
     async def event_stream():
-        async for chunk in stream_generate(system_prompt, user_message):
+        async for chunk in stream_generate(system_prompt, user_message, api_key=request.api_key):
             yield f"data: {json.dumps({'type': 'chunk', 'content': chunk}, ensure_ascii=False)}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 

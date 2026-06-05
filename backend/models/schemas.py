@@ -20,6 +20,7 @@ class PreLabGenerateRequest(BaseModel):
     experiment_id: str
     section: Literal["purpose", "principle", "equipment", "procedure"]
     student_info: StudentInfo = Field(default_factory=StudentInfo)
+    api_key: Optional[str] = None
 
 
 class ReviewRequest(BaseModel):
@@ -41,6 +42,7 @@ class ReviseRequest(BaseModel):
     section: str
     content: str
     feedback: str
+    api_key: Optional[str] = None
 
 
 class AssembleRequest(BaseModel):
@@ -58,6 +60,7 @@ class PostLabGenerateRequest(BaseModel):
     data: dict = {}
     analysis_results: dict = {}
     student_info: StudentInfo = Field(default_factory=StudentInfo)
+    api_key: Optional[str] = None
 
 
 # --- DOCX v2 Direct Build ---

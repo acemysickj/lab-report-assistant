@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { getApiKey } from '../utils/apiKeyStore';
 
 export function useSSE() {
   const [streaming, setStreaming] = useState(false);
@@ -20,10 +21,17 @@ export function useSSE() {
       const controller = new AbortController();
       controllerRef.current = controller;
 
+      // Inject api_key from localStorage
+      const enrichedBody = { ...(body as Record<string, unknown>) };
+      const key = getApiKey();
+      if (key && !enrichedBody.api_key) {
+        enrichedBody.api_key = key;
+      }
+
       fetch(`/api${url}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(enrichedBody),
         signal: controller.signal,
       })
         .then(async (res) => {

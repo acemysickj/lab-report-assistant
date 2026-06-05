@@ -47,6 +47,16 @@ async def health_check():
     }
 
 
+@app.post("/api/validate-key")
+async def validate_api_key(request: dict):
+    """Validate an API key without using it for generation."""
+    from services.claude_service import validate_key
+    api_key = (request.get("api_key") or "").strip()
+    if not api_key:
+        return {"valid": False, "provider": "", "error": "Key 为空"}
+    return await validate_key(api_key)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host=HOST, port=PORT, reload=True)

@@ -302,6 +302,9 @@ class PostLabErrorBoundary extends Component<{ children: ReactNode }, { error: E
 }
 
 export default function PostLabFlow() {
+  // Diagnostic: write to sessionStorage on mount to confirm component loads
+  try { sessionStorage.setItem('_postlab_debug', `mounted_${Date.now()}`); } catch {}
+
   const { courseId, experimentId } = useParams<{ courseId: string; experimentId: string }>();
   const navigate = useNavigate();
   const cId = courseId || sessionStorage.getItem('courseId') || '';
@@ -532,9 +535,16 @@ export default function PostLabFlow() {
     </Card>
   );
 
+  // Diagnostic: log mount
+  console.log('[PostLabFlow] mounted, step:', step, 'cId:', cId, 'eId:', eId);
+
   return (
     <PostLabErrorBoundary>
     <div style={{ maxWidth: 920, margin: '0 auto' }}>
+      {/* ---- Diagnostic marker ---- */}
+      <div style={{ background: step === 0 ? '#e6f7ff' : '#f6ffed', padding: '4px 12px', borderRadius: 6, marginBottom: 8, fontSize: 11, color: '#666', fontFamily: 'monospace' }}>
+        DEBUG: PostLabFlow step={step} cId={cId} eId={eId}
+      </div>
       {/* ---- Restore modal ---- */}
       <Modal
         title="恢复上次进度？"

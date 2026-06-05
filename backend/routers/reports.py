@@ -245,3 +245,99 @@ async def export_docx_v2(request: dict):
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": "attachment; filename=report.docx"},
     )
+
+
+# --- DOCX v3: Template-driven direct build ---
+
+@router.post("/export-docx-v3")
+async def export_docx_v3(request: dict):
+    """Build DOCX directly from a saved template + experiment data.
+
+    Request body: { template_name: str, course_id: str, experiment_id: str, experiment_data: dict }
+    Returns: DOCX binary stream.
+    """
+    from fastapi.responses import Response
+    from services.docx_service import build_from_template
+
+    template_name = request.get("template_name", "")
+    course_id = request.get("course_id", "")
+    experiment_id = request.get("experiment_id", "")
+    experiment_data = request.get("experiment_data", {})
+
+    if not template_name:
+        raise HTTPException(status_code=400, detail="缺少 template_name 参数")
+    if not course_id:
+        raise HTTPException(status_code=400, detail="缺少 course_id 参数")
+
+    try:
+        docx_bytes = build_from_template(
+            template_name, course_id, experiment_id, experiment_data,
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return Response(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": "attachment; filename=report.docx"},
+    )
+
+
+@router.get("/template/{template_name}")
+async def get_template_markup(template_name: str, course_id: str = ""):
+    """Get a saved template markup for frontend display."""
+    from services.docx_service import load_template_for_frontend
+
+    markup = load_template_for_frontend(template_name, course_id)
+    if markup is None:
+        raise HTTPException(status_code=404,
+                            detail=f"模板 '{template_name}' 未找到")
+    return markup
+
+
+@router.post("/template/parse")
+async def parse_template_docx(request: dict):
+    """Parse an uploaded DOCX template and return blocks for frontend marking.
+
+    Request body: { docx_path: str }
+    Returns: { template_name, page_setup, blocks }
+    """
+    from services.docx_v2.template_parser import parse_template
+
+    docx_path = request.get("docx_path", "")
+    if not docx_path:
+        raise HTTPException(status_code=400, detail="缺少 docx_path 参数")
+
+    try:
+        result = parse_template(docx_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"模板解析失败: {str(e)}")
+
+    return result
+
+
+@router.post("/template/save-markup")
+async def save_template_markup(request: dict):
+    """Save a marked-up template to reference/ for later use.
+
+    Request body: { course_id: str, markup: { template_name, page_setup, blocks } }
+    """
+    from config import REFERENCE_DIR
+    import json
+
+    course_id = request.get("course_id", "")
+    markup = request.get("markup", {})
+
+    template_name = markup.get("template_name", "")
+    if not template_name:
+        raise HTTPException(status_code=400, detail="缺少 template_name")
+
+    pattern_dir = REFERENCE_DIR / course_id / "pattern" if course_id else REFERENCE_DIR / "pattern"
+    pattern_dir.mkdir(parents=True, exist_ok=True)
+
+    markup_path = pattern_dir / f"{template_name}.markup.json"
+    markup_path.write_text(json.dumps(markup, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    return {"saved": str(markup_path), "template_name": template_name}

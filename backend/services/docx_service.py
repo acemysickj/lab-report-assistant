@@ -142,3 +142,189 @@ def is_pandoc_available() -> bool:
         return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
+
+
+# ── v3: template-driven direct DOCX build ─────────────────────────────────
+
+def _load_template_markup(template_name: str, course_id: str = "") -> dict | None:
+    """Load a saved template markup JSON from reference/."""
+    import json
+    from config import REFERENCE_DIR
+
+    search_dirs = []
+    if course_id:
+        search_dirs.append(REFERENCE_DIR / course_id / "pattern")
+    search_dirs.append(REFERENCE_DIR / "pattern")
+
+    for d in search_dirs:
+        markup_path = d / f"{template_name}.markup.json"
+        if markup_path.exists():
+            return json.loads(markup_path.read_text(encoding="utf-8"))
+    return None
+
+
+_BUILD_SCRIPT_SYSTEM_PROMPT = """你是一个 python-docx 构建脚本生成器。你的任务是根据模板结构和实验数据，生成一个可直接执行的 Python 构建脚本。
+
+脚本约束（必须严格遵守）：
+1. 只能 import 以下模块：builder, docx_v2.utils, json, sys, pathlib
+2. 第一步调用 reset_equation_counter() 重置公式计数器
+3. 第二步调用 create_document(page_cm, ...) 创建文档
+4. 第三步调用 add_content_table(doc, rows=N) 创建内容容器
+5. 按 blocks 顺序遍历，对每个 block：
+   - fixed=true → 调用 builder 函数输出模板固定文字
+   - fixed=false → 根据实验数据调用 builder 函数填入内容
+6. display_formula → formula(cell, latex)
+7. inline_formula → body_sub(cell, text) 不要单独处理
+8. three_line_table → w3table(cell, headers, rows, caption)
+9. image + figcaption → img(cell, path) + figcap(cell, text)
+10. 【降级】公式嵌入到 body_sub 中，转换失败不 crash
+
+【输出铁律】只输出 Python 代码，禁止任何解释、注释说明、markdown 代码块包裹。你的输出直接保存为 .py 文件执行。"""
+
+
+def build_from_template(
+    template_name: str,
+    course_id: str,
+    experiment_id: str,
+    experiment_data: dict | None = None,
+) -> bytes:
+    """Build a DOCX from a saved template markup + experiment data.
+
+    Args:
+        template_name: Name of the template (matches {name}.markup.json).
+        course_id: Course identifier for locating the template.
+        experiment_id: Experiment identifier for output path.
+        experiment_data: Dict with keys like 'title', 'objectives', 'methods',
+            'process', 'data_tables', 'formulas', 'analysis', 'conclusions',
+            'reflections', 'thinking_questions', 'figure_dir'.
+
+    Returns:
+        DOCX file as bytes.
+    """
+    import json
+    from config import OUTPUT_DIR, PROJECT_ROOT
+    from services.claude_service import generate_sync
+
+    experiment_data = experiment_data or {}
+
+    # 1. Load template markup
+    markup = _load_template_markup(template_name, course_id)
+    if markup is None:
+        raise FileNotFoundError(
+            f"模板 '{template_name}.markup.json' 未找到。"
+            f"请先在 reference/{course_id}/pattern/ 中上传模板 DOCX 并保存标记。"
+        )
+
+    page = markup.get("page_setup", {})
+    blocks = markup.get("blocks", [])
+
+    # 2. Build AI prompt
+    user_message = _build_script_prompt(
+        template_name, page, blocks, experiment_data
+    )
+
+    # 3. Generate Python script via AI (synchronous, needs event loop)
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    script_code = loop.run_until_complete(
+        generate_sync(_BUILD_SCRIPT_SYSTEM_PROMPT, user_message,
+                      temperature=0.3, max_tokens=8000)
+    )
+
+    # Strip markdown code fences if AI wrapped output
+    script_code = script_code.strip()
+    if script_code.startswith("```"):
+        lines = script_code.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        script_code = "\n".join(lines)
+
+    # 4. Save script to output directory
+    out_dir = OUTPUT_DIR / course_id / experiment_id / "scripts"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    script_path = out_dir / "build_docx.py"
+    script_path.write_text(script_code, encoding="utf-8")
+
+    # 5. Execute the script to produce DOCX
+    reports_dir = OUTPUT_DIR / course_id / experiment_id / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    import sys
+    # Save original sys.argv and set up for the script
+    orig_argv = sys.argv
+    orig_path = list(sys.path)
+    try:
+        sys.path.insert(0, str(PROJECT_ROOT / "backend" / "services"))
+        result = subprocess.run(
+            [sys.executable, str(script_path)],
+            capture_output=True, text=True, timeout=120,
+            cwd=str(PROJECT_ROOT),
+            env={**os.environ, "PYTHONPATH": str(PROJECT_ROOT / "backend")},
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"DOCX 构建脚本执行失败 (exit {result.returncode}):\n"
+                f"STDOUT: {result.stdout}\n"
+                f"STDERR: {result.stderr}"
+            )
+    finally:
+        sys.argv = orig_argv
+        sys.path = orig_path
+
+    # 6. Find and return the generated DOCX
+    docx_files = list(reports_dir.glob("*.docx"))
+    if not docx_files:
+        raise RuntimeError(
+            f"DOCX 构建脚本执行成功但未生成 .docx 文件。"
+            f"脚本输出:\n{result.stdout}"
+        )
+
+    latest_docx = max(docx_files, key=lambda p: p.stat().st_mtime)
+    return latest_docx.read_bytes()
+
+
+def _build_script_prompt(
+    template_name: str,
+    page_setup: dict,
+    blocks: list[dict],
+    experiment_data: dict,
+) -> str:
+    """Build the user message (prompt) for AI script generation."""
+    import json
+
+    parts = [
+        f"生成一个 python-docx 构建脚本。",
+        "",
+        "## 页面设置",
+        json.dumps(page_setup, ensure_ascii=False, indent=2),
+        "",
+        "## 模板结构 (blocks)",
+        json.dumps(blocks, ensure_ascii=False, indent=2),
+        "",
+        "## 实验数据",
+        json.dumps(experiment_data, ensure_ascii=False, indent=2),
+        "",
+        "脚本中 import 格式：",
+        "from services.docx_v2.builder import (create_document, add_content_table,",
+        "    heading, sub, body, body_lbl, body_sub, formula, w3table, img, figcap,",
+        "    reset_equation_counter, clear_first_para)",
+        "from services.docx_v2.utils import latex_to_mathml, mathml_to_omml",
+        "",
+        "文档保存路径变量: REPORTS_DIR, 从环境变量 DOCX_OUTPUT_DIR 读取。",
+        "实验数据中的图片目录: FIGURES_DIR。",
+        "",
+        "直接输出 Python 代码。",
+    ]
+    return "\n".join(parts)
+
+
+def load_template_for_frontend(template_name: str, course_id: str = "") -> dict | None:
+    """Load template markup for frontend display/editing.  Returns None if not found."""
+    return _load_template_markup(template_name, course_id)

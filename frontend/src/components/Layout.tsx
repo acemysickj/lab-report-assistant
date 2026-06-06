@@ -9,12 +9,15 @@ import {
   BookOutlined,
   SettingOutlined,
   MoreOutlined,
+  KeyOutlined,
 } from '@ant-design/icons';
 import type { ItemType } from 'antd/es/menu/interface';
 import { getCourses, getExperiments } from '../api/client';
 import type { Course, Experiment } from '../types';
 import NewCourseModal from './NewCourseModal';
 import CourseManageModal from './CourseManageModal';
+import ApiKeyModal from './ApiKeyModal';
+import { hasApiKey } from '../utils/apiKeyStore';
 
 const { Sider, Content } = Layout;
 const { Text } = Typography;
@@ -32,6 +35,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [loadingExperiments, setLoadingExperiments] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [manageModalOpen, setManageModalOpen] = useState(false);
+  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
+
+  // Auto-detect: if no API key on first load, prompt user
+  useEffect(() => {
+    if (!hasApiKey()) {
+      const timer = setTimeout(() => setApiKeyModalOpen(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const loadCourses = useCallback(() => {
     setLoadingCourses(true);
@@ -273,6 +285,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       }}
                     />
                   </Tooltip>
+                  <Tooltip title="API Key 设置">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<KeyOutlined />}
+                      onClick={() => setApiKeyModalOpen(true)}
+                      style={{
+                        color: hasApiKey() ? '#3d7a4f' : '#c8923e',
+                        borderRadius: 8,
+                        transition: 'all 0.2s',
+                      }}
+                    />
+                  </Tooltip>
                 </div>
               </div>
             </>
@@ -348,6 +373,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </Content>
       </Layout>
 
+      <ApiKeyModal
+        open={apiKeyModalOpen}
+        onClose={() => setApiKeyModalOpen(false)}
+        onSaved={() => {}}
+      />
       <NewCourseModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={loadCourses} />
       <CourseManageModal
         open={manageModalOpen}

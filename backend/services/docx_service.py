@@ -1,144 +1,161 @@
-"""DOCX export service — converts assembled HTML report to .docx via pandoc.
+"""DOCX export service — template-driven deterministic DOCX build.
 
-MVP: pandoc HTML→DOCX with LaTeX math preprocessing.
-v2: python-docx template filling with latex2mathml + mathml2omml.
+No pandoc. No AI script generation.  Pure deterministic rendering
+via docx_v2.builder + block_renderer.
 """
-import re
-import subprocess
-import tempfile
 import os
 from pathlib import Path
 
 
-def _preprocess_html_for_pandoc(html: str) -> str:
-    """Transform MathJax/LaTeX in HTML to pandoc-compatible math delimiters.
+# ── template helpers ────────────────────────────────────────────────────
 
-    pandoc recognizes $...$ (inline) and $$...$$ (display) via texmath.
-    Our HTML uses \\(...\\) for inline and $$...$$ / \\begin{equation} for display.
-    """
-    # Inline: \(...\) → $...$
-    # Match literal backslash-open-paren: regex \\\( = escaped \ + escaped (
-    html = re.sub(r'\\\(', '$', html)
-    html = re.sub(r'\\\)', '$', html)
+def _load_template_markup(template_name: str, course_id: str = "") -> dict | None:
+    """Load a saved template markup JSON from reference/."""
+    import json
+    from config import REFERENCE_DIR
 
-    # Display: \begin{equation}...\end{equation} → $$...$$
-    html = re.sub(r'\\begin\{equation\}', '$$', html)
-    html = re.sub(r'\\end\{equation\}', '$$', html)
+    search_dirs = []
+    if course_id:
+        search_dirs.append(REFERENCE_DIR / course_id / "pattern")
+    search_dirs.append(REFERENCE_DIR / "pattern")
 
-    # Display: \begin{align}...\end{align} → $$...$$
-    # (pandoc/texmath may not handle align perfectly, but $$ is safer than leaving raw)
-    html = re.sub(r'\\begin\{align\*?\}', '$$', html)
-    html = re.sub(r'\\end\{align\*?\}', '$$', html)
-
-    # \begin{cases}...\end{cases} — wrap in $$ for pandoc
-    html = re.sub(r'\\begin\{cases\}', '$$\\\\begin{cases}', html)
-    html = re.sub(r'\\end\{cases\}', '\\\\end{cases}$$', html)
-
-    return html
+    for d in search_dirs:
+        markup_path = d / f"{template_name}.markup.json"
+        if markup_path.exists():
+            return json.loads(markup_path.read_text(encoding="utf-8"))
+    return None
 
 
-def _replace_svg_images(html: str) -> str:
-    """Replace SVG <img> tags with placeholder text.
-
-    pandoc cannot embed SVG into DOCX.  We replace each SVG image
-    with a note telling the student the figure is in the HTML version.
-    v2: pre-render SVG→PNG via cairosvg and embed the PNG instead.
-    """
-    def _replacement(match: re.Match) -> str:
-        src = match.group(1) or ""
-        alt = match.group(2) or ""
-        filename = src.rsplit("/", 1)[-1] if "/" in src else src
-        label = alt or filename or "图表"
-        return (
-            f'<p style="color:#999;font-style:italic;padding:8px;border:1px dashed #ccc;">'
-            f'[图表：{label} — 请参见 HTML 版报告或手动插入图片]'
-            f'</p>'
-        )
-
-    # Match <img ... src="..." ... alt="..." ... >
-    html = re.sub(
-        r'<img[^>]*src="([^"]+)"[^>]*(?:alt="([^"]*)")?[^>]*>',
-        _replacement,
-        html,
-    )
-    return html
+def load_template_for_frontend(template_name: str, course_id: str = "") -> dict | None:
+    """Load template markup for frontend display/editing. Returns None if not found."""
+    return _load_template_markup(template_name, course_id)
 
 
-def convert_html_to_docx(html: str) -> bytes:
-    """Convert an HTML report string to .docx bytes via pandoc.
+# ── deterministic template build ────────────────────────────────────────
+
+def build_from_template(
+    template_name: str,
+    course_id: str,
+    experiment_id: str,
+    experiment_data: dict | None = None,
+) -> bytes:
+    """Build a DOCX from a saved template markup + experiment data.
+
+    Deterministic: loads markup JSON, merges with experiment_data,
+    renders via blocks_to_docx().  No AI involvement.
 
     Args:
-        html: Complete HTML document (with <!DOCTYPE>, <html>, <head>, <body>).
+        template_name: Name of the template (matches {name}.markup.json).
+        course_id: Course identifier for locating the template.
+        experiment_id: Experiment identifier (unused, for API compatibility).
+        experiment_data: Dict with keys matching template block fill targets.
 
     Returns:
         DOCX file as bytes.
 
     Raises:
-        RuntimeError: If pandoc is not installed or conversion fails.
+        FileNotFoundError: If template markup not found.
     """
-    html = _preprocess_html_for_pandoc(html)
-    html = _replace_svg_images(html)
+    import io
+    from services.docx_v2.builder import (
+        create_document, clear_first_para, set_tbl_borders,
+    )
+    from services.block_renderer import blocks_to_docx
+    from docx.shared import Cm
+    from docx.enum.table import WD_TABLE_ALIGNMENT
 
-    with tempfile.NamedTemporaryFile(
-        suffix=".html", mode="w", encoding="utf-8", delete=False
-    ) as tmp_html:
-        tmp_html.write(html)
-        html_path = tmp_html.name
+    experiment_data = experiment_data or {}
 
-    with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp_docx:
-        docx_path = tmp_docx.name
-
-    try:
-        from config import PANDOC_PATH, REFERENCE_DOCX
-        pandoc_path = os.environ.get("PANDOC_PATH", PANDOC_PATH)
-        cmd = [pandoc_path, html_path, "-f", "html+tex_math_dollars", "-t", "docx", "-o", docx_path]
-
-        # Use reference docx for styling if configured
-        if REFERENCE_DOCX and Path(REFERENCE_DOCX).exists():
-            cmd.extend(["--reference-doc", REFERENCE_DOCX])
-
-        # Extract media to a temp dir (we discard it for MVP since SVG isn't embeddable)
-        cmd.extend(["--extract-media", str(Path(docx_path).parent)])
-
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-
-        if result.returncode != 0:
-            stderr = result.stderr.strip()
-            # pandoc often writes non-fatal warnings to stderr;
-            # only treat it as an error if the output file is empty/missing
-            docx_file = Path(docx_path)
-            if not docx_file.exists() or docx_file.stat().st_size < 1000:
-                raise RuntimeError(f"pandoc conversion failed: {stderr}")
-
-        docx_file = Path(docx_path)
-        if not docx_file.exists():
-            raise RuntimeError("pandoc did not produce output file")
-
-        return docx_file.read_bytes()
-
-    except FileNotFoundError:
-        raise RuntimeError(
-            "pandoc 未安装。请安装 pandoc (https://pandoc.org/installing.html) 后重试。"
+    # 1. Load template markup
+    markup = _load_template_markup(template_name, course_id)
+    if markup is None:
+        raise FileNotFoundError(
+            f"模板 '{template_name}.markup.json' 未找到。"
         )
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("pandoc 转换超时（60秒）")
-    finally:
-        # Clean up temp files
-        for p in (html_path, docx_path):
-            try:
-                Path(p).unlink(missing_ok=True)
-            except OSError:
-                pass
+
+    page = markup.get("page_setup", {})
+    template_blocks = markup.get("blocks", [])
+
+    # 2. Merge template blocks with experiment data
+    blocks = _merge_template_with_data(template_blocks, experiment_data)
+
+    # 3. Build DOCX deterministically
+    doc = create_document(
+        page_width_cm=page.get("width_cm", 21.0),
+        page_height_cm=page.get("height_cm", 29.7),
+        top_margin_cm=page.get("top_margin_cm", 2.54),
+        bottom_margin_cm=page.get("bottom_margin_cm", 2.54),
+        left_margin_cm=page.get("left_margin_cm", 1.92),
+        right_margin_cm=page.get("right_margin_cm", 1.57),
+        font_ascii=page.get("font_ascii", "Calibri"),
+        font_east_asia=page.get("font_east_asia", "宋体"),
+        font_size_pt=page.get("font_size_pt", 12.0),
+        line_spacing=page.get("line_spacing", 1.5),
+    )
+
+    tbl = doc.add_table(rows=1, cols=1)
+    tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_tbl_borders(tbl, sz=4)
+    tbl.rows[0].cells[0].width = Cm(17.47)
+    clear_first_para(tbl.rows[0].cells[0])
+
+    figure_dir = experiment_data.get("figure_dir", "")
+    blocks_to_docx(doc, blocks, tbl.rows[0].cells[0], figure_dir=figure_dir)
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
 
 
-def is_pandoc_available() -> bool:
-    """Check whether pandoc is installed and reachable."""
-    from config import PANDOC_PATH
-    pandoc_path = os.environ.get("PANDOC_PATH", PANDOC_PATH)
-    try:
-        result = subprocess.run(
-            [pandoc_path, "--version"], capture_output=True, text=True, timeout=10
-        )
-        return result.returncode == 0
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
+def _merge_template_with_data(
+    template_blocks: list[dict],
+    experiment_data: dict,
+) -> list[dict]:
+    """Merge template blocks with experiment data.
+
+    fixed=True blocks keep template text.
+    fixed=False blocks are filled from experiment_data.
+    """
+    result = []
+    for block in template_blocks:
+        if block.get("fixed", True):
+            result.append(dict(block))
+        else:
+            filled = _fill_block_from_data(block, experiment_data)
+            if filled:
+                result.append(filled)
+    return result
+
+
+def _fill_block_from_data(block: dict, data: dict) -> dict:
+    """Fill a non-fixed template block from experiment data.
+
+    Simple strategy:
+      - body blocks: look for string values in data
+      - table blocks: look for dict values with headers/rows
+      - formula blocks: look for string values
+      - image blocks: keep as-is (path filled elsewhere)
+    """
+    btype = block.get("type", "")
+    block_text = block.get("text", "")
+
+    # Try data keys that might match this block's content
+    for key, val in data.items():
+        if not val:
+            continue
+        if btype == "body" and isinstance(val, str) and val.strip():
+            # Match first string value — simple heuristic
+            # In practice, data dict keys are ordered by template position
+            return {"type": "body", "text": val}
+        elif btype == "three_line_table" and isinstance(val, dict):
+            return {
+                "type": "three_line_table",
+                "headers": val.get("headers", block.get("headers", [])),
+                "rows": val.get("rows", block.get("rows", [])),
+                "caption": val.get("caption", block.get("caption", "")),
+            }
+        elif btype == "display_formula" and isinstance(val, str):
+            return {"type": "display_formula", "latex": val}
+
+    # Fallback: return block as-is
+    return dict(block)

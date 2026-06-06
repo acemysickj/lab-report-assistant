@@ -1,9 +1,12 @@
 import { useEffect } from 'react';
-import { useBlocker } from 'react-router-dom';
 
 /**
  * Warn the user before leaving the page if there are unsaved changes.
- * Uses both `beforeunload` (tab close/refresh) and `useBlocker` (in-app navigation).
+ * Uses `beforeunload` (tab close/refresh).
+ *
+ * NOTE: In-app navigation blocking requires a data router (createBrowserRouter).
+ * Currently using <BrowserRouter> which doesn't support useBlocker.
+ * When migrating to createBrowserRouter, re-enable useBlocker for in-app warnings.
  *
  * @param hasUnsaved - whether there are unsaved changes
  * @param message - custom message for the browser dialog (some browsers ignore this)
@@ -23,11 +26,7 @@ export function useUnsavedWarning(hasUnsaved: boolean, message?: string) {
     return () => window.removeEventListener('beforeunload', handler);
   }, [hasUnsaved, message]);
 
-  // In-app navigation (React Router)
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      hasUnsaved && currentLocation.pathname !== nextLocation.pathname,
-  );
-
-  return blocker;
+  // Return a dummy blocker for API compatibility.
+  // In-app navigation is NOT blocked until we migrate to createBrowserRouter.
+  return { state: 'unblocked' as string, proceed: undefined as (() => void) | undefined, reset: undefined as (() => void) | undefined };
 }

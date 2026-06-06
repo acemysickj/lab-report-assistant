@@ -1,4 +1,15 @@
+import { getApiKey } from '../utils/apiKeyStore';
+
 const BASE = '/api';
+
+// Inject api_key into request body if available
+function withApiKey(body: Record<string, unknown>): string {
+  const key = getApiKey();
+  if (key) {
+    body.api_key = key;
+  }
+  return JSON.stringify(body);
+}
 
 // --- Courses & Experiments ---
 export const getCourses = () =>

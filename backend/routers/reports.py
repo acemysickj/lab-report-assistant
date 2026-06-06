@@ -41,6 +41,7 @@ async def generate_prelab_section(request: PreLabGenerateRequest):
             request.experiment_id,
             request.section,
             request.student_info,
+            api_key=request.api_key,
         ):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
@@ -57,7 +58,7 @@ async def revise_prelab_section(request: ReviseRequest):
     user_message = f"原始内容：\n{request.content}\n\n用户反馈：\n{request.feedback}\n\n直接输出修改后的完整 HTML："
 
     async def event_stream():
-        async for chunk in stream_generate(system_prompt, user_message):
+        async for chunk in stream_generate(system_prompt, user_message, api_key=request.api_key):
             yield f"data: {json.dumps({'type': 'chunk', 'content': chunk}, ensure_ascii=False)}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
@@ -139,6 +140,7 @@ async def generate_postlab_section(request: PostLabGenerateRequest):
             request.section,
             request.student_info,
             extra_context=extra,
+            api_key=request.api_key,
         ):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
@@ -152,7 +154,7 @@ async def revise_postlab_section(request: ReviseRequest):
     user_message = f"原始内容：\n{request.content}\n\n用户反馈：\n{request.feedback}\n\n直接输出修改后的完整 HTML："
 
     async def event_stream():
-        async for chunk in stream_generate(system_prompt, user_message):
+        async for chunk in stream_generate(system_prompt, user_message, api_key=request.api_key):
             yield f"data: {json.dumps({'type': 'chunk', 'content': chunk}, ensure_ascii=False)}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
@@ -187,61 +189,133 @@ async def assemble_postlab(request: dict):
     filepath = save_report_html(0, exp_title, report_id, html, "完整")
 
     return {"report_id": report_id, "html_path": str(filepath), "html": html}
-# --- DOCX Export ---
+# --- DOCX Export (统一入口) ---
 
 @router.post("/export-docx")
 async def export_docx(request: dict):
-    """Convert assembled HTML report to DOCX and return as downloadable file.
+    """Build DOCX from blocks JSON or template + experiment data.
 
-    Request body: { html: str }
+    Request body options:
+      1. { blocks: [...] }  -- direct blocks rendering
+      2. { template_name, course_id, experiment_id, experiment_data }
+         -- template-driven build
+
     Returns: DOCX binary stream.
     """
     from fastapi.responses import Response
-    from services.docx_service import convert_html_to_docx, is_pandoc_available
 
-    if not is_pandoc_available():
-        raise HTTPException(
-            status_code=501,
-            detail="pandoc 未安装。请安装 pandoc 后重试。",
+    # Path A: Direct blocks -> DOCX (deterministic)
+    blocks = request.get("blocks", None)
+    if blocks and isinstance(blocks, list):
+        try:
+            docx_bytes = _build_docx_from_blocks(blocks)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"DOCX 构建失败: {str(e)}")
+        return Response(
+            content=docx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": "attachment; filename=report.docx"},
         )
 
-    html = request.get("html", "")
-    if not html:
-        raise HTTPException(status_code=400, detail="缺少 html 参数")
+    # Path B: Template-driven build (deterministic)
+    template_name = request.get("template_name", "")
+    if template_name:
+        course_id = request.get("course_id", "")
+        experiment_id = request.get("experiment_id", "")
+        experiment_data = request.get("experiment_data", {})
+        from services.docx_service import build_from_template
+        try:
+            docx_bytes = build_from_template(
+                template_name, course_id, experiment_id, experiment_data,
+            )
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except RuntimeError as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        return Response(
+            content=docx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": "attachment; filename=report.docx"},
+        )
 
-    try:
-        docx_bytes = convert_html_to_docx(html)
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    return Response(
-        content=docx_bytes,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": "attachment; filename=report.docx"},
-    )
+    raise HTTPException(status_code=400, detail="缺少 blocks 或 template_name 参数")
 
 
-@router.post("/export-docx-v2")
-async def export_docx_v2(request: dict):
-    """Build DOCX from HTML report via python-docx + addFormula2docx renderer.
+def _build_docx_from_blocks(blocks: list[dict]) -> bytes:
+    """Build a DOCX file from blocks JSON using deterministic rendering."""
+    import io
+    from services.docx_v2.builder import create_document, clear_first_para, set_tbl_borders
+    from services.block_renderer import blocks_to_docx
+    from docx.shared import Cm
+    from docx.enum.table import WD_TABLE_ALIGNMENT
 
-    Request body: { html: str }
-    Returns: DOCX binary stream.
+    doc = create_document()
+    tbl = doc.add_table(rows=1, cols=1)
+    tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_tbl_borders(tbl, sz=4)
+    tbl.rows[0].cells[0].width = Cm(17.47)
+    clear_first_para(tbl.rows[0].cells[0])
+
+    blocks_to_docx(doc, blocks, tbl.rows[0].cells[0])
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+@router.get("/template/{template_name}")
+async def get_template_markup(template_name: str, course_id: str = ""):
+    """Get a saved template markup for frontend display."""
+    from services.docx_service import load_template_for_frontend
+
+    markup = load_template_for_frontend(template_name, course_id)
+    if markup is None:
+        raise HTTPException(status_code=404,
+                            detail=f"模板 '{template_name}' 未找到")
+    return markup
+
+
+@router.post("/template/parse")
+async def parse_template_docx(request: dict):
+    """Parse an uploaded DOCX template and return blocks for frontend marking.
+
+    Request body: { docx_path: str }
+    Returns: { template_name, page_setup, blocks }
     """
-    from fastapi.responses import Response
-    from services.docx_v2 import convert_html_to_docx_v2
+    from services.docx_v2.template_parser import parse_template
 
-    html = request.get("html", "")
-    if not html:
-        raise HTTPException(status_code=400, detail="缺少 html 参数")
+    docx_path = request.get("docx_path", "")
+    if not docx_path:
+        raise HTTPException(status_code=400, detail="缺少 docx_path 参数")
 
     try:
-        docx_bytes = convert_html_to_docx_v2(html)
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        result = parse_template(docx_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"模板解析失败: {str(e)}")
 
-    return Response(
-        content=docx_bytes,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": "attachment; filename=report.docx"},
-    )
+    return result
+
+
+@router.post("/template/save-markup")
+async def save_template_markup(request: dict):
+    """Save a marked-up template to reference/ for later use.
+
+    Request body: { course_id: str, markup: { template_name, page_setup, blocks } }
+    """
+    from config import REFERENCE_DIR
+    import json
+
+    course_id = request.get("course_id", "")
+    markup = request.get("markup", {})
+
+    template_name = markup.get("template_name", "")
+    if not template_name:
+        raise HTTPException(status_code=400, detail="缺少 template_name")
+
+    pattern_dir = REFERENCE_DIR / course_id / "pattern" if course_id else REFERENCE_DIR / "pattern"
+    pattern_dir.mkdir(parents=True, exist_ok=True)
+
+    markup_path = pattern_dir / f"{template_name}.markup.json"
+    markup_path.write_text(json.dumps(markup, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    return {"saved": str(markup_path), "template_name": template_name}

@@ -25,11 +25,45 @@ def save_report_html(
     html_content: str,
     phase: str,
 ) -> Path:
-    """Save a report HTML file."""
+    """Save a report. Auto-detects blocks JSON vs HTML.
+
+    If content starts with '[' (looks like a JSON array), saves as .json (blocks).
+    Otherwise saves as .html (legacy).
+    """
+    import json as _json
     exp_dir = get_experiment_dir(experiment_id, experiment_title)
+    stripped = html_content.strip()
+    if stripped.startswith('['):
+        try:
+            blocks = _json.loads(stripped)
+            if isinstance(blocks, list):
+                filename = f"实验{experiment_id}_{phase}_报告_{report_id}.json"
+                filepath = exp_dir / filename
+                filepath.write_text(
+                    _json.dumps(blocks, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+                return filepath
+        except (_json.JSONDecodeError, ValueError):
+            pass
     filename = f"实验{experiment_id}_{phase}_报告_{report_id}.html"
     filepath = exp_dir / filename
     filepath.write_text(html_content, encoding="utf-8")
+    return filepath
+
+
+def save_report_blocks(
+    experiment_id: int,
+    experiment_title: str,
+    report_id: str,
+    blocks: list[dict],
+    phase: str,
+) -> Path:
+    """Save report blocks as JSON file."""
+    import json as _json
+    exp_dir = get_experiment_dir(experiment_id, experiment_title)
+    filename = f"实验{experiment_id}_{phase}_报告_{report_id}.json"
+    filepath = exp_dir / filename
+    filepath.write_text(_json.dumps(blocks, ensure_ascii=False, indent=2), encoding="utf-8")
     return filepath
 
 
@@ -68,7 +102,7 @@ def list_reports() -> list[dict]:
         if not exp_dir.is_dir() or exp_dir.name.startswith("_"):
             continue
         for file in sorted(exp_dir.iterdir(), reverse=True):
-            if not file.suffix == ".html":
+            if file.suffix not in ('.html', '.json'):
                 continue
             stem = file.stem
             # Parse report_id from filename
@@ -90,11 +124,42 @@ def list_reports() -> list[dict]:
 
 
 def get_report_content(experiment_dir: str, filename: str) -> str | None:
-    """Get the HTML content of a specific report."""
+    """Get the HTML content of a specific report.
+
+    If the stored file is .json (blocks), renders to HTML first.
+    If it's .html (legacy), returns directly.
+    """
     filepath = OUTPUT_DIR / experiment_dir / filename
-    if filepath.exists():
-        return filepath.read_text(encoding="utf-8")
-    return None
+    if not filepath.exists():
+        # Try alternative extension
+        if filename.endswith('.html'):
+            json_name = filename[:-5] + '.json'
+            alt_path = OUTPUT_DIR / experiment_dir / json_name
+            if alt_path.exists():
+                filepath = alt_path
+        elif filename.endswith('.json'):
+            html_name = filename[:-5] + '.html'
+            alt_path = OUTPUT_DIR / experiment_dir / html_name
+            if alt_path.exists():
+                filepath = alt_path
+
+    if not filepath.exists():
+        return None
+
+    content = filepath.read_text(encoding="utf-8")
+
+    # If it's blocks JSON, render to HTML
+    if filepath.suffix == '.json':
+        try:
+            import json as _json
+            from services.block_renderer import blocks_to_html
+            blocks = _json.loads(content)
+            if isinstance(blocks, list):
+                return blocks_to_html(blocks, include_mathjax=True)
+        except Exception:
+            pass
+
+    return content
 
 
 def delete_report(experiment_dir: str, filename: str) -> bool:

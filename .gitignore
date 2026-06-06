@@ -13,3 +13,15 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+#user add
+.codegraph/
+.claude
+.mcp.json
+.cursor
+docs/
+test/
+gsap-skills/
+output/
+backend/backend.log
+backend/venv/
